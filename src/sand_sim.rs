@@ -28,8 +28,7 @@ pub trait SandSimulation {
         if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
             match cell_below.material {
                 CellMaterial::Air => {
-                    self.switch_cells(cell, cell_below);
-                    return;
+                    return self.switch_cells(cell, cell_below);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -41,8 +40,7 @@ pub trait SandSimulation {
         if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
             match cell_below_right.material {
                 CellMaterial::Air => {
-                    self.switch_cells(cell, cell_below_right);
-                    return;
+                    return self.switch_cells(cell, cell_below_right);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -53,8 +51,7 @@ pub trait SandSimulation {
         if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
             match cell_below_left.material {
                 CellMaterial::Air => {
-                    self.switch_cells(cell, cell_below_left);
-                    return;
+                    return self.switch_cells(cell, cell_below_left);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -65,8 +62,7 @@ pub trait SandSimulation {
         if let Some(cell_right) = self.get_cell(cell.x + 1, cell.y) {
             match cell_right.material {
                 CellMaterial::Air => {
-                    self.switch_cells(cell, cell_right);
-                    return;
+                    return self.switch_cells(cell, cell_right);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -77,8 +73,7 @@ pub trait SandSimulation {
         if let Some(cell_left) = self.get_cell(cell.x - 1, cell.y) {
             match cell_left.material {
                 CellMaterial::Air => {
-                    self.switch_cells(cell, cell_left);
-                    return;
+                    return self.switch_cells(cell, cell_left);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -92,12 +87,10 @@ pub trait SandSimulation {
         if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
             match cell_below.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Water,
                         ..cell_below
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -108,12 +101,10 @@ pub trait SandSimulation {
         if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
             match cell_below_right.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Water,
                         ..cell_below_right
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -124,12 +115,10 @@ pub trait SandSimulation {
         if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
             match cell_below_left.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Water,
                         ..cell_below_left
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -143,12 +132,10 @@ pub trait SandSimulation {
         if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
             match cell_below.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Sand,
                         ..cell_below
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -159,12 +146,10 @@ pub trait SandSimulation {
         if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
             match cell_below_right.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Sand,
                         ..cell_below_right
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -175,12 +160,10 @@ pub trait SandSimulation {
         if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
             match cell_below_left.material {
                 CellMaterial::Air => {
-                    let new_cell = Cell {
+                    return self.set_cell(Cell {
                         material: CellMaterial::Sand,
                         ..cell_below_left
-                    };
-                    self.set_cell(new_cell);
-                    return;
+                    });
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -194,8 +177,7 @@ pub trait SandSimulation {
         if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
             match cell_below.material {
                 CellMaterial::Air | CellMaterial::Water => {
-                    self.switch_cells(cell, cell_below);
-                    return;
+                    return self.switch_cells(cell, cell_below);
                 }
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
@@ -204,10 +186,10 @@ pub trait SandSimulation {
         }
         if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
             match cell_below_right.material {
-                CellMaterial::Air | CellMaterial::Water => {
-                    self.switch_cells(cell, cell_below_right);
-                    return;
+                CellMaterial::Air => {
+                    return self.switch_cells(cell, cell_below_right);
                 }
+                CellMaterial::Water => {}
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
                 CellMaterial::WaterGenerator => {}
@@ -215,10 +197,10 @@ pub trait SandSimulation {
         }
         if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
             match cell_below_left.material {
-                CellMaterial::Air | CellMaterial::Water => {
-                    self.switch_cells(cell, cell_below_left);
-                    return;
+                CellMaterial::Air => {
+                    return self.switch_cells(cell, cell_below_left);
                 }
+                CellMaterial::Water => {}
                 CellMaterial::Sand => {}
                 CellMaterial::SandGenerator => {}
                 CellMaterial::WaterGenerator => {}

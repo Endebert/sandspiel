@@ -3,8 +3,8 @@ use crate::sand_sim::{Cell, CellMaterial, SandSimulation};
 // const CLEAR_SCREEN: String = format!("{esc}[2J{esc}[1;1H", esc = 27 as char);
 
 const AIR: char = ' ';
-const SAND: char = '■';
-const WATER: char = '◉';
+const SAND: char = 's';
+const WATER: char = 'w';
 const SANDGENERATOR: char = 'S';
 const WATERGENERATOR: char = 'W';
 
