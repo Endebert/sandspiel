@@ -11,13 +11,34 @@ const W: sand_sim::CellMaterial = sand_sim::CellMaterial::Water;
 const A: sand_sim::CellMaterial = sand_sim::CellMaterial::Air;
 
 fn main() {
+    // let snapshot_t0: sandspiel_static_5::Snapshot = [
+    //     [A, A, S, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, A, A, A],
+    // ];
     let snapshot_t0: sandspiel_static_5::Snapshot = [
         [A, A, S, A, A],
         [A, A, A, A, A],
+        [A, A, S, A, A],
         [A, A, A, A, A],
-        [A, A, A, A, A],
-        [A, A, A, A, A],
+        [A, A, S, A, A],
     ];
+    // let snapshot_t0: sandspiel_static_5::Snapshot = [
+    //     [A, A, S, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, A, A, A],
+    //     [W, W, W, W, W],
+    //     [W, W, W, W, W],
+    // ];
+    // let snapshot_t0: sandspiel_static_5::Snapshot = [
+    //     [A, A, S, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, A, A, A],
+    //     [W, W, W, W, W],
+    //     [W, W, W, W, W],
+    // ];
     let mut spiel = sandspiel_static_5::SandspielStatic5::from_snapshot(snapshot_t0);
 
     loop {

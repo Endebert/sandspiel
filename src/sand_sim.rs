@@ -12,30 +12,46 @@ pub trait SandSimulation<Cell: TCell> {
         }
     }
 
-    fn handle_sand(&mut self, cell: Cell) {
-        if !cell.has_velocity() {
-            ()
-        }
+    fn handle_sand(&mut self, mut cell: Cell) {
+        let mut steps = cell.velocity().abs();
 
-        if let Some(below) = self.get_neighbor(&cell, Direction::Down) {
-            self.handle_sand_collision(cell, below)
+        while steps > 0 {
+            steps -= 1;
+
+            let directions = [Direction::Down, Direction::DownRight, Direction::DownLeft];
+            for d in directions {
+                if let Some(mut other) = self.get_neighbor(&cell, d) {
+                    if self.handle_sand_collision(&mut cell, &mut other) {
+                        continue;
+                    }
+                }
+            }
+
+            // if let Some(mut other) = valid_target {
+            //     self.handle_sand_collision(&mut cell, &mut other);
+            // } else {
+            //     // nowhere to go -> stop velocity
+            //     self.mod_velocity(cell.velocity() * -1, &mut cell);
+            // }
         }
     }
 
-    fn handle_sand_collision(&mut self, mut cell: Cell, mut below: Cell) {
-        match below.material() {
+    fn handle_sand_collision(&mut self, cell: &mut Cell, other_cell: &mut Cell) -> bool {
+        match other_cell.material() {
             CellMaterial::Air => {
-                self.swap_cells(&mut cell, &mut below);
+                self.swap_cells(cell, other_cell);
+                true
             }
-            // CellMaterial::Water => {
-            //     self.mod_velocity(-1, &mut cell);
-            //     self.mod_velocity(1, &mut below);
-            //
-            //     self.swap_cells(&mut cell, &mut below);
-            //     self.handle_sand(cell);
-            //     self.handle_water(below);
-            // }
-            _ => {}
+            CellMaterial::Water => {
+                self.mod_velocity(-1, cell);
+                self.mod_velocity(1, other_cell);
+
+                self.swap_cells(cell, other_cell);
+                // self.handle_sand(cell);
+                // self.handle_water(below);
+                true
+            }
+            _ => false,
         }
     }
 
@@ -216,7 +232,7 @@ pub trait TCell {
     fn material(&self) -> &CellMaterial;
 
     fn has_velocity(&self) -> bool {
-        *self.velocity() == 0
+        *self.velocity() != 0
     }
 }
 
@@ -230,6 +246,7 @@ pub enum CellMaterial {
     // Solid,
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     Up,
     Down,
