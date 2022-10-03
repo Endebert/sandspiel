@@ -1,7 +1,32 @@
 use crate::sand_sim::{CellMaterial, Direction, SandSimulation, TCell};
+pub type Snapshot = [[CellMaterial; 5]; 5];
 
 pub struct SandspielStatic5 {
     field: [[(CellMaterial, i8); 5]; 5],
+}
+
+impl SandspielStatic5 {
+    pub fn new(field: [[(CellMaterial, i8); 5]; 5]) -> Self {
+        Self { field }
+    }
+
+    pub fn snapshot(&self) -> Snapshot {
+        self.field.map(|row| row.map(|(material, _)| material))
+    }
+
+    pub fn from_snapshot(snapshot: Snapshot) -> Self {
+        Self::new(snapshot.map(|row| row.map(|material| (material, 0))))
+    }
+
+    pub fn run(&mut self) {
+        for y in (0..5).rev() {
+            for x in (0..5).rev() {
+                let (material, velocity) = self.field[y][x];
+                let cell = Cell2d::new(x as u16, y as u16, velocity, material);
+                self.handle_cell(cell);
+            }
+        }
+    }
 }
 
 pub struct Cell2d {
@@ -88,11 +113,6 @@ impl SandSimulation<Cell2d> for SandspielStatic5 {
 
         b.x = t.0;
         b.y = t.1;
-
-        // (
-        //     Cell2d::new(b.x, b.y, a.velocity, a.material),
-        //     Cell2d::new(a.x, a.y, b.velocity, b.material),
-        // )
     }
 
     fn mod_velocity(&mut self, velocity: i8, cell: &mut Cell2d) {
@@ -103,5 +123,54 @@ impl SandSimulation<Cell2d> for SandspielStatic5 {
                 cell.velocity = velocity;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    const S: CellMaterial = CellMaterial::Sand;
+    const W: CellMaterial = CellMaterial::Water;
+    const A: CellMaterial = CellMaterial::Air;
+
+    #[test]
+    fn sand_falls() {
+        let snapshot_t0: Snapshot = [
+            [A, A, S, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+        ];
+        let snapshot_t1: Snapshot = [
+            [A, A, A, A, A],
+            [A, A, S, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+        ];
+        let snapshot_t2: Snapshot = [
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, S, A, A],
+            [A, A, A, A, A],
+        ];
+        let snapshot_t3: Snapshot = [
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, A, A, A],
+            [A, A, S, A, A],
+        ];
+
+        let mut spiel = SandspielStatic5::from_snapshot(snapshot_t0);
+        assert_eq!(spiel.snapshot(), snapshot_t0);
+        spiel.run();
+        assert_eq!(spiel.snapshot(), snapshot_t1);
+        spiel.run();
+        assert_eq!(spiel.snapshot(), snapshot_t2);
+        spiel.run();
+        assert_eq!(spiel.snapshot(), snapshot_t3);
     }
 }

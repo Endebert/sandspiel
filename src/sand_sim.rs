@@ -4,7 +4,8 @@ pub trait SandSimulation<Cell: TCell> {
     fn swap_cells(&mut self, a: &mut Cell, b: &mut Cell);
     fn mod_velocity(&mut self, velocity: i8, cell: &mut Cell);
 
-    fn handle_cell(&mut self, cell: Cell) {
+    fn handle_cell(&mut self, mut cell: Cell) {
+        self.mod_velocity(1, &mut cell);
         match cell.material() {
             CellMaterial::Sand => self.handle_sand(cell),
             _ => {}
@@ -24,48 +25,39 @@ pub trait SandSimulation<Cell: TCell> {
     fn handle_sand_collision(&mut self, mut cell: Cell, mut below: Cell) {
         match below.material() {
             CellMaterial::Air => {
-                self.mod_velocity(cell.velocity() + 1, &mut cell);
                 self.swap_cells(&mut cell, &mut below);
             }
-            CellMaterial::Water => {
-                self.mod_velocity(-1, &mut cell);
-                self.mod_velocity(1, &mut below);
-
-                self.swap_cells(&mut cell, &mut below);
-                self.handle_sand(cell);
-                self.handle_water(below);
-            }
+            // CellMaterial::Water => {
+            //     self.mod_velocity(-1, &mut cell);
+            //     self.mod_velocity(1, &mut below);
+            //
+            //     self.swap_cells(&mut cell, &mut below);
+            //     self.handle_sand(cell);
+            //     self.handle_water(below);
+            // }
             _ => {}
         }
     }
 
-    fn handle_water(&mut self, cell: Cell) {
-        if !cell.has_velocity() {
-            ()
-        }
-
-        if let Some(below) = self.get_neighbor(&cell, Direction::Down) {
-            self.handle_water_collision(cell, below)
-        }
-    }
-
-    fn handle_water_collision(&mut self, cell: Cell, below: Cell) {
-        todo!();
-        // match below.material() {
-        //     CellMaterial::Air => {
-        //         self.swap_cells(cell, below);
-        //     }
-        //     CellMaterial::Water => {
-        //         self.mod_velocity(cell, -1);
-        //         self.mod_velocity(below, 1);
-        //
-        //         self.swap_cells(cell, below);
-        //         self.handle_sand(cell);
-        //         self.handle_water(below);
-        //     }
-        //     _ => {}
-        // }
-    }
+    // fn handle_water(&mut self, cell: Cell) {
+    //     if !cell.has_velocity() {
+    //         ()
+    //     }
+    //
+    //     if let Some(below) = self.get_neighbor(&cell, Direction::Down) {
+    //         self.handle_water_collision(cell, below)
+    //     }
+    // }
+    //
+    // fn handle_water_collision(&mut self, mut cell: Cell, mut below: Cell) {
+    //     match below.material() {
+    //         CellMaterial::Air => {
+    //             self.mod_velocity(cell.velocity() + 1, &mut cell);
+    //             self.swap_cells(&mut cell, &mut below);
+    //         }
+    //         _ => {}
+    //     }
+    // }
 
     /*
     fn handle_water(&mut self, cell: Cell) {
@@ -228,7 +220,7 @@ pub trait TCell {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CellMaterial {
     Sand,
     SandGenerator,
