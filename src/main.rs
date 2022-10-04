@@ -18,12 +18,19 @@ fn main() {
     //     [A, A, A, A, A],
     //     [A, A, A, A, A],
     // ];
+    // let snapshot_t0: sandspiel_static_5::Snapshot = [
+    //     [A, A, S, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, S, A, A],
+    //     [A, A, A, A, A],
+    //     [A, A, S, A, A],
+    // ];
     let snapshot_t0: sandspiel_static_5::Snapshot = [
-        [A, A, S, A, A],
+        [A, A, A, A, A],
+        [A, A, A, A, A],
         [A, A, A, A, A],
         [A, A, S, A, A],
-        [A, A, A, A, A],
-        [A, A, S, A, A],
+        [A, A, S, S, A],
     ];
     // let snapshot_t0: sandspiel_static_5::Snapshot = [
     //     [A, A, S, A, A],
@@ -44,7 +51,7 @@ fn main() {
     loop {
         print_snapshot(spiel.snapshot());
         spiel.run();
-        sleep(Duration::from_millis(500));
+        sleep(Duration::from_millis(1000));
     }
 }
 
