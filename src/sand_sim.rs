@@ -1,227 +1,208 @@
-pub trait SandSimulation {
-    fn width(&self) -> i16;
-    fn height(&self) -> i16;
+pub struct Sandspiel {
+    width: u16,
+    height: u16,
+    pub(crate) area: Area,
+}
 
-    fn get_cell(&self, x: i16, y: i16) -> Option<Cell>;
-    fn set_cell(&mut self, cell: Cell);
-    fn switch_cells(&mut self, cell1: Cell, cell2: Cell);
+pub type Area = Vec<Vec<Cell>>;
 
-    fn update(&mut self) {
-        // go from bottom to top
-        for y in (0..self.height()).rev() {
-            for x in (0..self.width()).rev() {
-                // unwrap is safe here, as the loops are bound by own dimensions.
-                // therefore we can't be outside bounds when calling get_cell() here
-                let cell = self.get_cell(x, y).unwrap();
-                match cell.material {
-                    CellMaterial::Sand => self.handle_sand(cell),
-                    CellMaterial::Air => {}
-                    CellMaterial::SandGenerator => self.handle_sand_generator(cell),
-                    CellMaterial::Water => self.handle_water(cell),
-                    CellMaterial::WaterGenerator => self.handle_water_generator(cell),
-                }
+impl Sandspiel {
+    pub fn new(width: u16, height: u16, area: Area) -> Self {
+        Self {
+            width,
+            height,
+            area,
+        }
+    }
+
+    pub fn gen_area(width: u16, height: u16) -> Vec<Cell> {
+        let default_cell = Cell::new(CellMaterial::Air, 0);
+        vec![default_cell; (width * height) as usize]
+    }
+
+    pub fn update(&mut self) {
+        for y in (0..self.height).rev() {
+            for x in (0..self.width).rev() {
+                self.handle_cell_at(Position { x, y })
             }
         }
     }
 
-    fn handle_water(&mut self, cell: Cell) {
-        if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
-            match cell_below.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_below);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
+    pub fn handle_cell_at(&mut self, pos: Position) {
+        let cell = self.get_cell(pos).unwrap();
 
-        if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
-            match cell_below_right.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_below_right);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
-            match cell_below_left.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_below_left);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_right) = self.get_cell(cell.x + 1, cell.y) {
-            match cell_right.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_right);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_left) = self.get_cell(cell.x - 1, cell.y) {
-            match cell_left.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_left);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
+        match cell.material {
+            CellMaterial::Sand => self.handle_sand(cell, pos),
+            CellMaterial::Air => {}
         }
     }
 
-    fn handle_water_generator(&mut self, cell: Cell) {
-        if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
-            match cell_below.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Water,
-                        ..cell_below
-                    });
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
-            match cell_below_right.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Water,
-                        ..cell_below_right
-                    });
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
-            match cell_below_left.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Water,
-                        ..cell_below_left
-                    });
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
+    fn get_cell(&self, pos: Position) -> Option<Cell> {
+        let Position { x, y } = pos;
+
+        match x >= self.width || y >= self.height {
+            true => None,
+            false => Some(self.area[y as usize][x as usize]),
         }
     }
 
-    fn handle_sand_generator(&mut self, cell: Cell) {
-        if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
-            match cell_below.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Sand,
-                        ..cell_below
-                    });
+    fn set_cell(&mut self, cell: &Cell, pos: Position) {
+        let Position { x, y } = pos;
+        self.area[y as usize][x as usize] = *cell;
+    }
+    fn handle_sand(&mut self, mut cell: Cell, pos: Position) {
+        // adding velocity once per handling
+        cell.velocity += 1;
+
+        let mut moves = cell.velocity.abs();
+        let mut cur_pos = pos;
+        while moves > 0 {
+            moves -= 1;
+
+            for dir in [Direction::Down, Direction::RightDown, Direction::LeftDown] {
+                if let Some((other_cell, other_pos)) = self.get_neighbor(cur_pos, dir) {
+                    match other_cell.material {
+                        CellMaterial::Sand => {}
+                        CellMaterial::Air => {
+                            self.switch_cells(&cell, &other_cell, cur_pos, other_pos);
+                            cur_pos = other_pos;
+                            break;
+                        }
+                    }
                 }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
             }
-        }
-        if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
-            match cell_below_right.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Sand,
-                        ..cell_below_right
-                    });
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
-        }
-        if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
-            match cell_below_left.material {
-                CellMaterial::Air => {
-                    return self.set_cell(Cell {
-                        material: CellMaterial::Sand,
-                        ..cell_below_left
-                    });
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::Water => {}
-                CellMaterial::WaterGenerator => {}
-            }
+
+            // unable to move -> set velocity to 0
+            cell.velocity = 0;
         }
     }
 
-    fn handle_sand(&mut self, cell: Cell) {
-        if let Some(cell_below) = self.get_cell(cell.x, cell.y + 1) {
-            match cell_below.material {
-                CellMaterial::Air | CellMaterial::Water => {
-                    return self.switch_cells(cell, cell_below);
-                }
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::WaterGenerator => {}
-            }
+    fn switch_cells(&mut self, cell: &Cell, other_cell: &Cell, pos: Position, other_pos: Position) {
+        self.set_cell(&cell, other_pos);
+        self.set_cell(&other_cell, pos);
+    }
+
+    fn get_neighbor(&self, pos: Position, dir: Direction) -> Option<(Cell, Position)> {
+        if let Some(other_pos) = self.get_neighbor_pos(pos, dir) {
+            Some((self.get_cell(other_pos).unwrap(), other_pos))
+        } else {
+            None
         }
-        if let Some(cell_below_right) = self.get_cell(cell.x + 1, cell.y + 1) {
-            match cell_below_right.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_below_right);
+    }
+
+    fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
+        match dir {
+            Direction::Up => {
+                if pos.y.checked_sub(1).is_none() {
+                    None
+                } else {
+                    Some(Position::new(pos.x, pos.y - 1))
                 }
-                CellMaterial::Water => {}
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::WaterGenerator => {}
             }
-        }
-        if let Some(cell_below_left) = self.get_cell(cell.x - 1, cell.y + 1) {
-            match cell_below_left.material {
-                CellMaterial::Air => {
-                    return self.switch_cells(cell, cell_below_left);
+            Direction::Down => {
+                if pos.y.checked_add(1).is_none() || pos.y + 1 >= self.height {
+                    None
+                } else {
+                    Some(Position::new(pos.x, pos.y + 1))
                 }
-                CellMaterial::Water => {}
-                CellMaterial::Sand => {}
-                CellMaterial::SandGenerator => {}
-                CellMaterial::WaterGenerator => {}
+            }
+            Direction::Left => {
+                if pos.x.checked_sub(1).is_none() {
+                    None
+                } else {
+                    Some(Position::new(pos.x - 1, pos.y))
+                }
+            }
+            Direction::Right => {
+                if pos.x.checked_add(1).is_none() || pos.x + 1 >= self.width {
+                    None
+                } else {
+                    Some(Position::new(pos.x + 1, pos.y))
+                }
+            }
+            Direction::LeftUp => {
+                if pos.x.checked_sub(1).is_none() || pos.y.checked_sub(1).is_none() {
+                    None
+                } else {
+                    Some(Position::new(pos.x - 1, pos.y - 1))
+                }
+            }
+            Direction::RightUp => {
+                if pos.x.checked_add(1).is_none()
+                    || pos.y.checked_sub(1).is_none()
+                    || pos.x + 1 >= self.width
+                {
+                    None
+                } else {
+                    Some(Position::new(pos.x + 1, pos.y - 1))
+                }
+            }
+            Direction::LeftDown => {
+                if pos.x.checked_sub(1).is_none()
+                    || pos.y.checked_add(1).is_none()
+                    || pos.y + 1 >= self.height
+                {
+                    None
+                } else {
+                    Some(Position::new(pos.x - 1, pos.y + 1))
+                }
+            }
+            Direction::RightDown => {
+                if pos.x.checked_add(1).is_none()
+                    || pos.y.checked_add(1).is_none()
+                    || pos.x + 1 >= self.width
+                    || pos.y + 1 >= self.height
+                {
+                    None
+                } else {
+                    Some(Position::new(pos.x + 1, pos.y + 1))
+                }
             }
         }
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Copy)]
+pub struct Position {
+    x: u16,
+    y: u16,
+}
+
+impl Position {
+    pub fn new(x: u16, y: u16) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct Cell {
-    pub x: i16,
-    pub y: i16,
     pub material: CellMaterial,
+    pub velocity: i8,
 }
 
-#[derive(Copy, Clone, Debug)]
+impl Cell {
+    pub fn new(material: CellMaterial, velocity: i8) -> Self {
+        Self { velocity, material }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub enum CellMaterial {
     Sand,
-    SandGenerator,
-    Water,
-    WaterGenerator,
+    // SandGenerator,
+    // Water,
+    // WaterGenerator,
     Air,
     // Solid,
+}
+
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+    LeftUp,
+    RightUp,
+    LeftDown,
+    RightDown,
 }

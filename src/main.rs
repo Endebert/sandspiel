@@ -1,56 +1,41 @@
 extern crate core;
 
-use crate::sand_sim::{Cell, CellMaterial, SandSimulation};
-use crate::sandspiel_terminal::SandspielTerminal;
+use crate::sand_sim::{Area, Cell, CellMaterial, Sandspiel};
 use std::thread::sleep;
 use std::time::Duration;
 
 mod sand_sim;
-mod sandspiel_terminal;
+mod sim_printer;
+
+const A: Cell = Cell {
+    material: CellMaterial::Air,
+    velocity: 0,
+};
+const S: Cell = Cell {
+    material: CellMaterial::Sand,
+    velocity: 0,
+};
 
 fn main() {
-    println!("Hello, world!");
+    // let mut sim = gen_sim1();
+    let mut sim = gen_sim1();
 
-    let mut sim = SandspielTerminal::new(16, 16);
-    // sim.set_cell(Cell {
-    //     x: 16,
-    //     y: 0,
-    //     material: CellMaterial::Sand,
-    // });
-    // sim.set_cell(Cell {
-    //     x: 16,
-    //     y: 16,
-    //     material: CellMaterial::Sand,
-    // });
-    // sim.set_cell(Cell {
-    //     x: 1,
-    //     y: 5,
-    //     material: CellMaterial::WaterGenerator,
-    // });
-    sim.set_cell(Cell {
-        x: 3,
-        y: 0,
-        material: CellMaterial::SandGenerator,
-    });
-    sim.set_cell(Cell {
-        x: 3,
-        y: 1,
-        material: CellMaterial::Air,
-    });
-
-    sim.set_cell(Cell {
-        x: 3,
-        y: 2,
-        material: CellMaterial::Air,
-    });
-    // loop {
-    //     sim.draw();
-    //     sim.update();
-    //     sleep(Duration::from_millis(125));
-    // }
     loop {
-        sim.draw();
+        sim_printer::print_sim(&sim);
         sim.update();
-        sleep(Duration::from_millis(125));
+        sleep(Duration::from_millis(1000))
     }
+}
+
+fn gen_sim1() -> Sandspiel {
+    let width: u16 = 5;
+    let height: u16 = 5;
+    let area: Area = vec![
+        vec![A, A, S, A, A],
+        vec![A, A, S, A, A],
+        vec![A, A, S, A, A],
+        vec![A, A, S, A, A],
+        vec![A, A, S, A, A],
+    ];
+    Sandspiel::new(width, height, area)
 }
