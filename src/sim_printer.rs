@@ -1,4 +1,4 @@
-use crate::{CellMaterial, Sandspiel};
+use crate::{Cell, Sandspiel};
 
 const AIR: char = ' ';
 const SAND: char = '■';
@@ -6,25 +6,20 @@ const WATER: char = '◉';
 const SANDGENERATOR: char = 'S';
 const WATERGENERATOR: char = 'W';
 
-fn get_char_from_material(material: CellMaterial) -> char {
+fn cell_to_char(material: &Cell) -> char {
     match material {
-        CellMaterial::Sand => SAND,
-        CellMaterial::SandGenerator => SANDGENERATOR,
-        CellMaterial::Air => AIR,
-        CellMaterial::Water => WATER,
-        CellMaterial::WaterGenerator => WATERGENERATOR,
+        Cell::Sand => SAND,
+        Cell::SandGenerator => SANDGENERATOR,
+        Cell::Air => AIR,
+        Cell::Water => WATER,
+        Cell::WaterGenerator => WATERGENERATOR,
     }
 }
 pub fn print_sim(sim: &Sandspiel) {
     // clear screen
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
 
-    for row in &sim.area {
-        println!(
-            "{}",
-            row.iter()
-                .map(|cell| get_char_from_material(cell.material))
-                .collect::<String>()
-        )
+    for row in sim.area.chunks(sim.width as usize) {
+        println!("{}", row.iter().map(cell_to_char).collect::<String>())
     }
 }
