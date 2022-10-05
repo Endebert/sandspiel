@@ -1,18 +1,10 @@
 use rand::{random, Rng};
 
 pub struct Sandspiel {
-    pub(crate) width: u16,
-    height: u16,
+    pub width: u16,
+    pub height: u16,
     pub area: Vec<Cell>,
-    pub handled_area: Vec<bool>,
-}
-
-fn or<T>(a: T, b: T) -> T {
-    if random() {
-        a
-    } else {
-        b
-    }
+    handled_area: Vec<bool>,
 }
 
 impl Sandspiel {
@@ -25,10 +17,6 @@ impl Sandspiel {
         }
     }
 
-    pub fn gen_area(width: u16, height: u16) -> Vec<Cell> {
-        vec![Cell::Air; (width * height) as usize]
-    }
-
     pub fn update(&mut self) {
         self.handled_area.fill(false);
         for y in (0..self.height).rev() {
@@ -38,7 +26,11 @@ impl Sandspiel {
         }
     }
 
-    pub fn handle_cell_at(&mut self, pos: Position) {
+    pub fn gen_area(width: u16, height: u16) -> Vec<Cell> {
+        vec![Cell::Air; (width * height) as usize]
+    }
+
+    fn handle_cell_at(&mut self, pos: Position) {
         if self.is_handled(pos) {
             return;
         }
@@ -67,71 +59,23 @@ impl Sandspiel {
         }
     }
 
-    fn get_area_index(&self, pos: &Position) -> usize {
-        (pos.y * self.width + pos.x) as usize
-    }
-
     fn set_cell(&mut self, cell: Cell, pos: &Position) {
         let area_index = self.get_area_index(pos);
         self.area[area_index] = cell;
     }
-    fn handle_sand(&mut self, pos: Position) -> Position {
-        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
 
-        // if random() {
-        //     arr_down_lr.reverse();
-        // }
-        for dir in [Direction::Down, arr_down_lr[0], arr_down_lr[1]] {
-            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
-                match other_cell {
-                    Cell::Sand => {}
-                    Cell::SandGenerator => {}
-                    Cell::Air => {
-                        self.swap_cells(&pos, &other_pos);
-                        return other_pos;
-                    }
-                    Cell::Water => {
-                        self.swap_cells(&pos, &other_pos);
-                        self.handle_water(pos);
-                        return other_pos;
-                    }
-                    Cell::WaterGenerator => {}
-                }
-            }
-        }
-        return pos;
+    fn swap_cells(&mut self, pos1: &Position, pos2: &Position) {
+        let area_index1 = self.get_area_index(pos1);
+        let area_index2 = self.get_area_index(pos2);
+        self.area.swap(area_index1, area_index2);
     }
 
-    fn handle_water(&mut self, pos: Position) -> Position {
-        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
-        let mut arr_lr = [Direction::Left, Direction::Right];
+    fn get_area_index(&self, pos: &Position) -> usize {
+        (pos.y * self.width + pos.x) as usize
+    }
 
-        // if random() {
-        //     arr_down_lr.reverse();
-        //     arr_lr.reverse();
-        // }
-
-        for dir in [
-            Direction::Down,
-            arr_down_lr[0],
-            arr_down_lr[1],
-            arr_lr[0],
-            arr_lr[1],
-        ] {
-            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
-                match other_cell {
-                    Cell::Sand => {}
-                    Cell::SandGenerator => {}
-                    Cell::Air => {
-                        self.swap_cells(&pos, &other_pos);
-                        return other_pos;
-                    }
-                    Cell::Water => {}
-                    Cell::WaterGenerator => {}
-                }
-            }
-        }
-        return pos;
+    fn is_handled(&self, pos: Position) -> bool {
+        self.handled_area[self.get_area_index(&pos)]
     }
 
     fn get_neighbor(&self, pos: Position, dir: Direction) -> Option<(Cell, Position)> {
@@ -140,10 +84,6 @@ impl Sandspiel {
         } else {
             None
         }
-    }
-
-    fn is_handled(&self, pos: Position) -> bool {
-        self.handled_area[self.get_area_index(&pos)]
     }
 
     fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
@@ -217,6 +157,65 @@ impl Sandspiel {
         }
     }
 
+    fn handle_sand(&mut self, pos: Position) -> Position {
+        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
+
+        // if random() {
+        //     arr_down_lr.reverse();
+        // }
+        for dir in [Direction::Down, arr_down_lr[0], arr_down_lr[1]] {
+            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
+                match other_cell {
+                    Cell::Sand => {}
+                    Cell::SandGenerator => {}
+                    Cell::Air => {
+                        self.swap_cells(&pos, &other_pos);
+                        return other_pos;
+                    }
+                    Cell::Water => {
+                        self.swap_cells(&pos, &other_pos);
+                        self.handle_water(pos);
+                        return other_pos;
+                    }
+                    Cell::WaterGenerator => {}
+                }
+            }
+        }
+        return pos;
+    }
+
+    fn handle_water(&mut self, pos: Position) -> Position {
+        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
+        let mut arr_lr = [Direction::Left, Direction::Right];
+
+        // if random() {
+        //     arr_down_lr.reverse();
+        //     arr_lr.reverse();
+        // }
+
+        for dir in [
+            Direction::Down,
+            arr_down_lr[0],
+            arr_down_lr[1],
+            arr_lr[0],
+            arr_lr[1],
+        ] {
+            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
+                match other_cell {
+                    Cell::Sand => {}
+                    Cell::SandGenerator => {}
+                    Cell::Air => {
+                        self.swap_cells(&pos, &other_pos);
+                        return other_pos;
+                    }
+                    Cell::Water => {}
+                    Cell::WaterGenerator => {}
+                }
+            }
+        }
+        return pos;
+    }
+
     fn handle_sand_generator(&mut self, pos: Position) -> Position {
         for dir in [Direction::Down] {
             if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
@@ -231,6 +230,7 @@ impl Sandspiel {
         }
         return pos;
     }
+
     fn handle_water_generator(&mut self, pos: Position) -> Position {
         for dir in [Direction::Down] {
             if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
@@ -244,11 +244,6 @@ impl Sandspiel {
             }
         }
         return pos;
-    }
-    fn swap_cells(&mut self, pos1: &Position, pos2: &Position) {
-        let area_index1 = self.get_area_index(pos1);
-        let area_index2 = self.get_area_index(pos2);
-        self.area.swap(area_index1, area_index2);
     }
 }
 
