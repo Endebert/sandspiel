@@ -6,7 +6,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 mod sand_sim;
-mod sim_printer;
+mod universe;
 
 const A: Cell = Cell::Air;
 const s: Cell = Cell::Sand;
@@ -16,102 +16,25 @@ const W: Cell = Cell::WaterGenerator;
 const w: Cell = Cell::Water;
 
 fn main() {
-    // let mut sim = gen_sim1();
-    // let mut sim = gen_sim2();
-    // let mut sim = gen_sim3();
     let mut sim = gen_sim4();
-    // let mut sim = gen_sim5();
-    // let mut sim = gen_sim6();
-    // let mut sim = gen_sim7();
-    // let mut sim = gen_sim8();
+
     let mut buf = String::new();
 
     loop {
-        sim_printer::print_sim(&sim);
+        println!("{}", sim.universe);
         sim.update();
         io::stdin().read_line(&mut buf);
         // sleep(Duration::from_millis(250))
     }
 }
 
-fn gen_sim1() -> Sandspiel {
-    let width: u16 = 5;
-    let height: u16 = 5;
-    let area: Vec<Cell> = vec![
-        vec![A, A, s, A, A],
-        vec![A, A, A, A, A],
-        vec![A, A, A, A, A],
-        vec![A, A, A, A, A],
-        vec![A, A, A, A, A],
-    ]
-    .concat();
-    Sandspiel::new(width, height, area)
-}
-
-fn gen_sim2() -> Sandspiel {
-    let width: u16 = 30;
-    let height: u16 = 30;
-    let mut area = Sandspiel::gen_area(width, height);
-    area[15] = Cell::Sand;
-    Sandspiel::new(width, height, area)
-}
-
-fn gen_sim3() -> Sandspiel {
-    let width: u16 = 30;
-    let height: u16 = 30;
-    let mut area = Sandspiel::gen_area(width, height);
-    area[15] = Cell::SandGenerator;
-    Sandspiel::new(width, height, area)
-}
-
 fn gen_sim4() -> Sandspiel {
-    let width: u16 = 30;
-    let height: u16 = 30;
-    let mut area = Sandspiel::gen_area(width, height);
-    area[20] = Cell::SandGenerator;
-    area[10] = Cell::WaterGenerator;
-    Sandspiel::new(width, height, area)
-}
+    let width: usize = 30;
+    let height: usize = 30;
 
-fn gen_sim5() -> Sandspiel {
-    let width: u16 = 30;
-    let height: u16 = 30;
-    let mut area = Sandspiel::gen_area(width, height);
-    area[15] = Cell::WaterGenerator;
-    Sandspiel::new(width, height, area)
-}
+    let mut sim = Sandspiel::new(width, height);
+    sim.universe.set_cell(Cell::WaterGenerator, 10);
+    sim.universe.set_cell(Cell::SandGenerator, 20);
 
-fn gen_sim6() -> Sandspiel {
-    let width: u16 = 5;
-    let height: u16 = 5;
-    let area: Vec<Cell> = vec![
-        vec![A, A, w, A, A],
-        vec![A, A, w, A, A],
-        vec![A, A, w, A, A],
-        vec![A, A, w, A, A],
-        vec![A, A, w, A, A],
-    ]
-    .concat();
-    Sandspiel::new(width, height, area)
-}
-
-fn gen_sim7() -> Sandspiel {
-    let width: u16 = 5;
-    let height: u16 = 5;
-    let area: Vec<Cell> = vec![
-        vec![A, A, A, A, A],
-        vec![A, A, A, A, A],
-        vec![A, A, A, A, A],
-        vec![A, A, w, A, A],
-        vec![A, A, w, A, A],
-    ]
-    .concat();
-    Sandspiel::new(width, height, area)
-}
-
-fn gen_sim8() -> Sandspiel {
-    let width: u16 = 3;
-    let height: u16 = 3;
-    let area: Vec<Cell> = vec![vec![A, S, A], vec![A, A, A], vec![A, A, A]].concat();
-    Sandspiel::new(width, height, area)
+    sim
 }
