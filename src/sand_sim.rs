@@ -1,41 +1,67 @@
+use rand::{random, Rng};
+
 pub struct Sandspiel {
     width: u16,
     height: u16,
-    pub area: Area,
+    pub area: Area<Cell>,
+    pub handled_area: Vec<bool>,
 }
 
-pub type Area = Vec<Vec<Cell>>;
+pub type Area<T> = Vec<Vec<T>>;
+
+fn or<T>(a: T, b: T) -> T {
+    if random() {
+        a
+    } else {
+        b
+    }
+}
 
 impl Sandspiel {
-    pub fn new(width: u16, height: u16, area: Area) -> Self {
+    pub fn new(width: u16, height: u16, area: Area<Cell>) -> Self {
         Self {
             width,
             height,
             area,
+            handled_area: vec![false; (width * height) as usize],
         }
     }
 
-    pub fn gen_area(width: u16, height: u16) -> Area {
-        let default_cell = Cell::new(CellMaterial::Air, 0);
+    pub fn gen_area(width: u16, height: u16) -> Area<Cell> {
+        let default_cell = Cell::new(CellMaterial::Air);
         vec![vec![default_cell; width as usize]; height as usize]
     }
 
+    pub fn gen_handled_area(width: u16, height: u16) -> Area<bool> {
+        vec![vec![false; width as usize]; height as usize]
+    }
+
     pub fn update(&mut self) {
+        self.handled_area.fill(false);
         for y in (0..self.height).rev() {
             for x in (0..self.width).rev() {
-                self.handle_cell_at(Position { x, y })
+                self.handle_cell_at(Position { x, y });
             }
         }
     }
 
     pub fn handle_cell_at(&mut self, pos: Position) {
-        let cell = self.get_cell(pos).unwrap();
+        if self.is_handled(pos.x, pos.y) {
+            return;
+        }
 
-        match cell.material {
-            CellMaterial::Air => {}
+        let mut cell = self.get_cell(pos).unwrap();
+
+        let new_pos = match cell.material {
+            CellMaterial::Air => pos,
             CellMaterial::Sand => self.handle_sand(cell, pos),
             CellMaterial::SandGenerator => self.handle_sand_generator(pos),
-        }
+
+            CellMaterial::Water => self.handle_water(cell, pos),
+            CellMaterial::WaterGenerator => self.handle_water_generator(pos),
+        };
+
+        self.handled_area[(new_pos.y * self.width + new_pos.x) as usize] = true;
     }
 
     fn get_cell(&self, pos: Position) -> Option<Cell> {
@@ -51,40 +77,63 @@ impl Sandspiel {
         let Position { x, y } = pos;
         self.area[y as usize][x as usize] = cell;
     }
-    fn handle_sand(&mut self, mut cell: Cell, pos: Position) {
-        // adding velocity once per handling
-        cell.velocity += 1;
+    fn handle_sand(&mut self, mut cell: Cell, pos: Position) -> Position {
+        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
 
-        let mut moves = cell.velocity.abs();
-        let mut cur_pos = pos;
-        while moves > 0 {
-            moves -= 1;
-
-            match self.handle_sand_helper(cell, cur_pos) {
-                Some(new_pos) => cur_pos = new_pos,
-                None => {
-                    // unable to move -> set velocity to 0
-                    cell.velocity = 0;
-                    break;
-                }
-            }
+        if random() {
+            arr_down_lr.reverse();
         }
-    }
-
-    fn handle_sand_helper(&mut self, cell: Cell, pos: Position) -> Option<Position> {
-        for dir in [Direction::Down, Direction::RightDown, Direction::LeftDown] {
+        for dir in [Direction::Down, arr_down_lr[0], arr_down_lr[1]] {
             if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
                 match other_cell.material {
                     CellMaterial::Sand => {}
                     CellMaterial::SandGenerator => {}
                     CellMaterial::Air => {
                         self.switch_cells(cell, other_cell, pos, other_pos);
-                        return Some(other_pos);
+                        return other_pos;
                     }
+                    CellMaterial::Water => {
+                        self.switch_cells(cell, other_cell, pos, other_pos);
+                        self.handle_water(Cell::new(CellMaterial::Water), pos);
+                        return other_pos;
+                    }
+                    CellMaterial::WaterGenerator => {}
                 }
             }
         }
-        None
+        return pos;
+    }
+
+    fn handle_water(&mut self, mut cell: Cell, pos: Position) -> Position {
+        let mut arr_down_lr = [Direction::LeftDown, Direction::RightDown];
+        let mut arr_lr = [Direction::Left, Direction::Right];
+
+        if random() {
+            arr_down_lr.reverse();
+            arr_lr.reverse();
+        }
+
+        for dir in [
+            Direction::Down,
+            arr_down_lr[0],
+            arr_down_lr[1],
+            arr_lr[0],
+            arr_lr[1],
+        ] {
+            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
+                match other_cell.material {
+                    CellMaterial::Sand => {}
+                    CellMaterial::SandGenerator => {}
+                    CellMaterial::Air => {
+                        self.switch_cells(cell, other_cell, pos, other_pos);
+                        return other_pos;
+                    }
+                    CellMaterial::Water => {}
+                    CellMaterial::WaterGenerator => {}
+                }
+            }
+        }
+        return pos;
     }
 
     fn switch_cells(&mut self, cell: Cell, other_cell: Cell, pos: Position, other_pos: Position) {
@@ -98,6 +147,10 @@ impl Sandspiel {
         } else {
             None
         }
+    }
+
+    fn is_handled(&self, x: u16, y: u16) -> bool {
+        self.handled_area[(y * self.width + x) as usize]
     }
 
     fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
@@ -171,17 +224,33 @@ impl Sandspiel {
         }
     }
 
-    fn handle_sand_generator(&mut self, pos: Position) {
+    fn handle_sand_generator(&mut self, pos: Position) -> Position {
         for dir in [Direction::Down] {
             if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
                 match other_cell.material {
                     CellMaterial::Air => {
-                        self.set_cell(Cell::new(CellMaterial::Sand, 0), other_pos);
+                        self.set_cell(Cell::new(CellMaterial::Sand), other_pos);
+                        break;
                     }
                     _ => {}
                 }
             }
         }
+        return pos;
+    }
+    fn handle_water_generator(&mut self, pos: Position) -> Position {
+        for dir in [Direction::Down] {
+            if let Some((other_cell, other_pos)) = self.get_neighbor(pos, dir) {
+                match other_cell.material {
+                    CellMaterial::Air => {
+                        self.set_cell(Cell::new(CellMaterial::Water), other_pos);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        return pos;
     }
 }
 
@@ -200,12 +269,11 @@ impl Position {
 #[derive(Clone, Copy)]
 pub struct Cell {
     pub material: CellMaterial,
-    pub velocity: i8,
 }
 
 impl Cell {
-    pub fn new(material: CellMaterial, velocity: i8) -> Self {
-        Self { velocity, material }
+    pub fn new(material: CellMaterial) -> Self {
+        Self { material }
     }
 }
 
@@ -213,12 +281,13 @@ impl Cell {
 pub enum CellMaterial {
     Sand,
     SandGenerator,
-    // Water,
-    // WaterGenerator,
+    Water,
+    WaterGenerator,
     Air,
     // Solid,
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     Up,
     Down,
