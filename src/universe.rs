@@ -4,10 +4,10 @@ use std::iter::Rev;
 use std::ops::Range;
 
 pub struct Universe {
-    area: Vec<Cell>,
+    pub area: Vec<Cell>,
     handled_area: Vec<bool>,
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Universe {
