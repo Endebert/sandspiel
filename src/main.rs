@@ -7,6 +7,7 @@ use std::time::Duration;
 
 mod sand_sim;
 mod universe;
+mod wgpu_renderer;
 
 const A: Cell = Cell::Air;
 const s: Cell = Cell::Sand;
@@ -16,6 +17,10 @@ const W: Cell = Cell::WaterGenerator;
 const w: Cell = Cell::Water;
 
 fn main() {
+    pollster::block_on(wgpu_renderer::run());
+}
+
+fn run_terminal() {
     let mut sim = gen_sim4();
 
     let mut buf = String::new();
