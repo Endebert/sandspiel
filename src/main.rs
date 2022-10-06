@@ -27,7 +27,7 @@ fn main() {
 
         println!("{}", sim.universe);
         sim.update();
-        io::stdin().read_line(&mut buf);
+        let _ignored = io::stdin().read_line(&mut buf);
         // sleep(Duration::from_millis(250))
     }
 }

@@ -1,5 +1,5 @@
 use crate::Cell;
-use std::fmt::{write, Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::iter::Rev;
 use std::ops::Range;
 
@@ -32,7 +32,7 @@ impl Universe {
         vec![false; width * height]
     }
 
-    pub fn fill(&mut self, area: Vec<Cell>) {
+    pub fn fill(&mut self, area: &[Cell]) {
         for (i, cell) in area.iter().enumerate() {
             self.area[i] = *cell;
         }
@@ -43,7 +43,7 @@ impl Universe {
     }
 
     pub fn set_cell(&mut self, cell: Cell, pos: Position) {
-        self.area[pos] = cell
+        self.area[pos] = cell;
     }
 
     pub fn swap_cells(&mut self, pos1: Position, pos2: Position) {
@@ -59,28 +59,16 @@ impl Universe {
     }
 
     pub fn get_neighbor(&self, pos: Position, dir: Direction) -> Option<(&Cell, Position)> {
-        self.get_neighbor_pos(pos, dir).map(|other_pos| {
-            (
-                self.get_cell(other_pos).expect(
-                    format!(
-                        "Tried to get cell out of bounds! pos: {}, max: {}",
-                        other_pos,
-                        self.area.len()
-                    )
-                    .as_str(),
-                ),
-                other_pos,
-            )
-        })
+        self.get_neighbor_pos(pos, dir)
+            .map(|other_pos| (self.get_cell(other_pos).unwrap(), other_pos))
     }
 
     pub fn set_all_unhandled(&mut self) {
-        self.handled_area.fill(false)
+        self.handled_area.fill(false);
     }
 
     fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
-        let width = self.width as isize;
-        let pos_x: usize = pos % self.height;
+        let pos_x = pos % self.height;
 
         let offset_hor: isize = match dir {
             Direction::Left | Direction::LeftUp | Direction::LeftDown => -1,
@@ -89,31 +77,36 @@ impl Universe {
         };
 
         let offset_ver: isize = match dir {
-            Direction::Up | Direction::LeftUp | Direction::RightUp => -width,
-            Direction::Down | Direction::LeftDown | Direction::RightDown => width,
+            Direction::Up | Direction::LeftUp | Direction::RightUp => -self.signed_width(),
+            Direction::Down | Direction::LeftDown | Direction::RightDown => self.signed_width(),
             _ => 0,
         };
 
-        let x = pos_x as isize + &offset_hor;
+        let x: isize = isize::try_from(pos_x).unwrap() + offset_hor;
 
-        if 0 < x && x < width {
-            let offset = offset_hor + &offset_ver;
+        if 0 < x && x < self.signed_width() {
+            let offset = offset_hor + offset_ver;
 
             if offset.is_positive() {
-                pos.checked_add(offset as usize)
+                // add offset to pos and check if it is still in bounds of area
+                pos.checked_add(offset.unsigned_abs())
                     .filter(|x| *x < self.area.len())
             } else {
-                pos.checked_sub(offset as usize)
+                pos.checked_sub(offset.unsigned_abs())
             }
         } else {
             None
         }
     }
+
+    fn signed_width(&self) -> isize {
+        self.width.try_into().unwrap()
+    }
 }
 
 impl Display for Universe {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        fn cell_to_char(cell: &Cell) -> char {
+        let cell_to_char = |cell: &Cell| -> char {
             match cell {
                 Cell::Sand => '■',
                 Cell::SandGenerator => 'S',
@@ -121,7 +114,7 @@ impl Display for Universe {
                 Cell::Water => '◉',
                 Cell::WaterGenerator => 'W',
             }
-        }
+        };
 
         let mut lines: Vec<String> = Vec::with_capacity(self.height);
         for chunk in self.area.chunks(self.width) {
@@ -129,25 +122,12 @@ impl Display for Universe {
         }
 
         write!(f, "{}", lines.join("\n"))
-
-        // for row in self
-        //     .area
-        //     .chunks(self.width)
-        //     .map(|row| row.iter().map(cell_to_char).collect::<String>())
-        // {
-        //     let res = writeln!(f, "{}", row);
-        //     if res.is_err() {
-        //         return res;
-        //     }
-        // }
-        //
-        // write!(f, "")
     }
 }
 
 pub type Position = usize;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Down,
