@@ -1,5 +1,6 @@
 use crate::Cell;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{write, Debug, Display, Formatter};
+use std::iter::Rev;
 use std::ops::Range;
 
 pub struct Universe {
@@ -19,8 +20,8 @@ impl Universe {
         }
     }
 
-    pub fn positions(&self) -> Range<usize> {
-        (0..self.area.len()).into_iter()
+    pub fn positions(&self) -> Rev<Range<usize>> {
+        (0..self.area.len()).rev()
     }
 
     fn gen_area(width: usize, height: usize) -> Vec<Cell> {
@@ -58,8 +59,19 @@ impl Universe {
     }
 
     pub fn get_neighbor(&self, pos: Position, dir: Direction) -> Option<(&Cell, Position)> {
-        self.get_neighbor_pos(pos, dir)
-            .map(|other_pos| (self.get_cell(other_pos).unwrap(), other_pos))
+        self.get_neighbor_pos(pos, dir).map(|other_pos| {
+            (
+                self.get_cell(other_pos).expect(
+                    format!(
+                        "Tried to get cell out of bounds! pos: {}, max: {}",
+                        other_pos,
+                        self.area.len()
+                    )
+                    .as_str(),
+                ),
+                other_pos,
+            )
+        })
     }
 
     pub fn set_all_unhandled(&mut self) {
@@ -68,23 +80,33 @@ impl Universe {
 
     fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
         let width = self.width as isize;
+        let pos_x: usize = pos % self.height;
 
-        let offset: isize = match dir {
-            Direction::Left => -1,
-            Direction::Right => 1,
-            Direction::Up => -width,
-            Direction::Down => width,
-            Direction::LeftUp => -1 - width,
-            Direction::RightUp => 1 - width,
-            Direction::LeftDown => -1 + width,
-            Direction::RightDown => 1 + width,
+        let offset_hor: isize = match dir {
+            Direction::Left | Direction::LeftUp | Direction::LeftDown => -1,
+            Direction::Right | Direction::RightUp | Direction::RightDown => 1,
+            _ => 0,
         };
 
-        if offset.is_positive() {
-            pos.checked_add(offset as usize)
-                .filter(|x| *x <= self.area.len())
+        let offset_ver: isize = match dir {
+            Direction::Up | Direction::LeftUp | Direction::RightUp => -width,
+            Direction::Down | Direction::LeftDown | Direction::RightDown => width,
+            _ => 0,
+        };
+
+        let x = pos_x as isize + &offset_hor;
+
+        if 0 < x && x < width {
+            let offset = offset_hor + &offset_ver;
+
+            if offset.is_positive() {
+                pos.checked_add(offset as usize)
+                    .filter(|x| *x < self.area.len())
+            } else {
+                pos.checked_sub(offset as usize)
+            }
         } else {
-            pos.checked_sub(offset as usize)
+            None
         }
     }
 }
@@ -101,6 +123,13 @@ impl Display for Universe {
             }
         }
 
+        let mut lines: Vec<String> = Vec::with_capacity(self.height);
+        for chunk in self.area.chunks(self.width) {
+            lines.push(chunk.iter().map(cell_to_char).collect::<String>());
+        }
+
+        write!(f, "{}", lines.join("\n"))
+
         // for row in self
         //     .area
         //     .chunks(self.width)
@@ -113,18 +142,6 @@ impl Display for Universe {
         // }
         //
         // write!(f, "")
-
-        let mut str = "".to_owned();
-        for row in self
-            .area
-            .chunks(self.width)
-            .map(|row| row.iter().map(cell_to_char).collect::<String>())
-        {
-            str += &*row;
-            str += "\n";
-        }
-
-        write!(f, "{str}")
     }
 }
 

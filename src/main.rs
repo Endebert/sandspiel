@@ -21,6 +21,10 @@ fn main() {
     let mut buf = String::new();
 
     loop {
+        // clear screen
+        // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+        print!("{esc}c", esc = 27 as char);
+
         println!("{}", sim.universe);
         sim.update();
         io::stdin().read_line(&mut buf);
