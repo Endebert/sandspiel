@@ -1,11 +1,15 @@
-use crate::universe::Universe;
-use crate::{Cell, Sandspiel};
+use simulation::sand_sim::Simulation;
+use simulation::universe::{Cell, Universe};
 use wgpu::Color;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+
+fn main() {
+    pollster::block_on(run());
+}
 
 pub async fn run() {
     env_logger::init();
@@ -69,7 +73,7 @@ struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    sim: Sandspiel,
+    sim: Simulation,
 }
 
 impl State {
@@ -119,7 +123,7 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let sim = Sandspiel::new(256, 256);
+        let sim = Simulation::new(256, 256);
 
         let img = to_u8(&sim.universe);
 

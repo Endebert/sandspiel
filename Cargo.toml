@@ -1,14 +1,8 @@
-[package]
-name = "sandspiel"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-env_logger = "0.9.1"
-log = "0.4.17"
-pollster = "0.2.5"
-rand = "0.8.5"
-wgpu = "0.14.0"
-winit = "0.27.3"
+members = [
+    "simulation",
+    "webgpu_renderer",
+    "terminal_renderer"
+]

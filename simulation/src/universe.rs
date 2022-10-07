@@ -1,8 +1,3 @@
-use crate::Cell;
-use std::fmt::{Display, Formatter};
-use std::iter::Rev;
-use std::ops::Range;
-
 pub struct Universe {
     pub area: Vec<Cell>,
     handled_area: Vec<bool>,
@@ -100,27 +95,6 @@ impl Universe {
     }
 }
 
-impl Display for Universe {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let cell_to_char = |cell: &Cell| -> char {
-            match cell {
-                Cell::Sand => '■',
-                Cell::SandGenerator => 'S',
-                Cell::Air => ' ',
-                Cell::Water => '◉',
-                Cell::WaterGenerator => 'W',
-            }
-        };
-
-        let mut lines: Vec<String> = Vec::with_capacity(self.height);
-        for chunk in self.area.chunks(self.width) {
-            lines.push(chunk.iter().map(cell_to_char).collect::<String>());
-        }
-
-        write!(f, "{}", lines.join("\n"))
-    }
-}
-
 pub type Position = usize;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -133,4 +107,14 @@ pub enum Direction {
     RightUp,
     LeftDown,
     RightDown,
+}
+
+#[derive(Clone, Copy)]
+pub enum Cell {
+    Sand,
+    SandGenerator,
+    Water,
+    WaterGenerator,
+    Air,
+    // Solid,
 }

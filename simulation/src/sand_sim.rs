@@ -1,11 +1,10 @@
-use crate::universe::{Direction, Position, Universe};
-use rand::{random, Rng};
+use crate::universe::{Cell, Direction, Position, Universe};
 
-pub struct Sandspiel {
+pub struct Simulation {
     pub universe: Universe,
 }
 
-impl Sandspiel {
+impl Simulation {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             universe: Universe::new(width, height),
@@ -116,14 +115,4 @@ impl Sandspiel {
         // air doesn't move on its own
         pos
     }
-}
-
-#[derive(Clone, Copy)]
-pub enum Cell {
-    Sand,
-    SandGenerator,
-    Water,
-    WaterGenerator,
-    Air,
-    // Solid,
 }
