@@ -31,7 +31,7 @@ fn run_terminal() {
         print!("{esc}c", esc = 27 as char);
 
         println!("{}", sim.universe);
-        sim.update();
+        sim.tick();
         let _ignored = io::stdin().read_line(&mut buf);
         // sleep(Duration::from_millis(250))
     }

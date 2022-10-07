@@ -12,11 +12,11 @@ impl Sandspiel {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn tick(&mut self) {
         self.universe.set_all_unhandled();
 
-        for pos in self.universe.positions() {
-            self.handle_cell_at(pos)
+        for pos in (0..self.universe.area.len()).rev() {
+            self.handle_cell_at(pos);
         }
     }
 

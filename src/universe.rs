@@ -20,10 +20,6 @@ impl Universe {
         }
     }
 
-    pub fn positions(&self) -> Rev<Range<usize>> {
-        (0..self.area.len()).rev()
-    }
-
     fn gen_area(width: usize, height: usize) -> Vec<Cell> {
         vec![Cell::Air; width * height]
     }
