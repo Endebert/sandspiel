@@ -1422,6 +1422,7 @@ name = "wasm-pack-renderer"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "simulation",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "wee_alloc",
