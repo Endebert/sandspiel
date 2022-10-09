@@ -1,4 +1,4 @@
-use crate::universe::{Cell, Direction, Position, Universe};
+use crate::universe::{Cell, CellKind, Direction, Position, Universe};
 
 pub struct Simulation {
     pub universe: Universe,
@@ -14,53 +14,58 @@ impl Simulation {
     pub fn tick(&mut self) {
         self.universe.set_all_unhandled();
 
-        for pos in (0..self.universe.area.len()).rev() {
-            self.handle_cell_at(pos);
+        // for pos in (0..self.universe.area.len()).rev() {
+        //     self.handle_cell_at(pos);
+        // }
+
+        for cell in self.universe.get_cells().iter() {
+            self.handle_cell(cell);
         }
     }
 
-    fn handle_cell_at(&mut self, pos: Position) {
-        if *self.universe.is_handled(pos).unwrap() {
+    fn handle_cell(&mut self, cell: &Cell) {
+        if *cell.handled() {
             return;
         }
 
-        let cell = self.universe.get_cell(pos).unwrap();
-
-        let new_pos = match cell {
-            Cell::Air => self.handle_air(pos),
-            Cell::Sand => self.handle_sand(pos),
-            Cell::SandGenerator => self.handle_sand_generator(pos),
-
-            Cell::Water => self.handle_water(pos),
-            Cell::WaterGenerator => self.handle_water_generator(pos),
+        let cell = match cell.kind() {
+            CellKind::Air => self.handle_air(cell),
+            CellKind::Sand => self.handle_sand(cell),
+            CellKind::SandGenerator => self.handle_sand_generator(cell),
+            CellKind::Water => self.handle_water(cell),
+            CellKind::WaterGenerator => self.handle_water_generator(cell),
         };
 
-        self.universe.set_handled(new_pos);
+        debug_assert_eq!(*cell.handled(), true);
     }
 
-    fn handle_sand(&mut self, pos: Position) -> Position {
+    fn handle_sand(&mut self, cell: &Cell) -> Cell {
         for dir in [Direction::Down, Direction::RightDown, Direction::LeftDown] {
-            if let Some((other_cell, other_pos)) = self.universe.get_neighbor(pos, dir) {
-                match other_cell {
-                    Cell::Sand => {}
-                    Cell::SandGenerator => {}
-                    Cell::Air => {
-                        self.universe.swap_cells(pos, other_pos);
-                        return other_pos;
+            if let Some(other_cell) = self.universe.get_neighbor(cell, dir) {
+                match other_cell.kind() {
+                    CellKind::Sand => {}
+                    CellKind::SandGenerator => {}
+                    CellKind::Air => {
+                        let (mut cell, other_cell) = self.universe.swap_cells(*cell, other_cell);
+                        cell.set_handled(true);
+                        return cell;
                     }
-                    Cell::Water => {
-                        self.universe.swap_cells(pos, other_pos);
-                        self.handle_water(pos);
-                        return other_pos;
+                    CellKind::Water => {
+                        let (mut cell, other_cell) = self.universe.swap_cells(*cell, other_cell);
+
+                        self.handle_water(&mut other_cell);
+                        cell.set_handled(true);
+                        return cell;
                     }
-                    Cell::WaterGenerator => {}
+                    CellKind::WaterGenerator => {}
                 }
             }
         }
-        return pos;
+        cell.set_handled(true);
+        return *cell;
     }
 
-    fn handle_water(&mut self, pos: Position) -> Position {
+    fn handle_water(&mut self, cell: &Cell) -> Cell {
         for dir in [
             Direction::Down,
             Direction::RightDown,
@@ -68,51 +73,54 @@ impl Simulation {
             Direction::Right,
             Direction::Left,
         ] {
-            if let Some((other_cell, other_pos)) = self.universe.get_neighbor(pos, dir) {
-                match other_cell {
-                    Cell::Sand => {}
-                    Cell::SandGenerator => {}
-                    Cell::Air => {
-                        self.universe.swap_cells(pos, other_pos);
-                        return other_pos;
-                    }
-                    Cell::Water => {}
-                    Cell::WaterGenerator => {}
-                }
-            }
-        }
-        return pos;
-    }
-
-    fn handle_sand_generator(&mut self, pos: Position) -> Position {
-        for dir in [Direction::Down] {
-            if let Some((other_cell, other_pos)) = self.universe.get_neighbor(pos, dir) {
-                match other_cell {
-                    Cell::Air => {
-                        self.universe.set_cell(Cell::Sand, other_pos);
-                        break;
+            if let Some(other_cell) = self.universe.get_neighbor(cell, dir) {
+                match other_cell.kind() {
+                    CellKind::Air => {
+                        let (mut cell, other_cell) = self.universe.swap_cells(*cell, other_cell);
+                        cell.set_handled(true);
+                        return cell;
                     }
                     _ => {}
                 }
             }
         }
-        return pos;
+        cell.set_handled(true);
+        return *cell;
     }
 
-    fn handle_water_generator(&mut self, pos: Position) -> Position {
-        if let Some((other_cell, other_pos)) = self.universe.get_neighbor(pos, Direction::Down) {
-            match other_cell {
-                Cell::Air => {
-                    self.universe.set_cell(Cell::Water, other_pos);
+    fn handle_sand_generator(&mut self, cell: &Cell) -> Cell {
+        for dir in [Direction::Down] {
+            if let Some(other_cell) = self.universe.get_neighbor(cell, dir) {
+                match other_cell.kind() {
+                    CellKind::Air => {
+                        return self.universe.replace_cell(&other_cell, CellKind::Sand);
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
-        return pos;
+        cell.set_handled(true);
+        return *cell;
     }
 
-    fn handle_air(&self, pos: Position) -> Position {
+    fn handle_water_generator(&mut self, cell: &Cell) -> Cell {
+        for dir in [Direction::Down] {
+            if let Some(other_cell) = self.universe.get_neighbor(cell, dir) {
+                match other_cell.kind() {
+                    CellKind::Air => {
+                        return self.universe.replace_cell(&other_cell, CellKind::Water);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        cell.set_handled(true);
+        return *cell;
+    }
+
+    fn handle_air(&self, cell: &Cell) -> Cell {
         // air doesn't move on its own
-        pos
+        cell.set_handled(true);
+        return *cell;
     }
 }
