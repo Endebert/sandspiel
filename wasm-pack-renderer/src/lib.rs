@@ -1,7 +1,7 @@
 mod utils;
 
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, Universe};
+use simulation::universe::{Cell, CellKind, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 
@@ -20,7 +20,10 @@ pub struct WasmPackRenderer {
 impl WasmPackRenderer {
     pub fn new(width: usize, height: usize) -> Self {
         let mut sim = Simulation::new(width, height);
-        sim.universe.area[width / 2] = Cell::WaterGenerator;
+        let mut fill_area = vec![CellKind::Air; width];
+        fill_area[width / 2] = CellKind::SandGenerator;
+
+        sim.universe.fill(&*fill_area);
         Self { sim }
     }
 
@@ -43,12 +46,12 @@ fn to_u8(universe: &Universe) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for cell in &universe.area {
-        let color = match cell {
-            Cell::Sand => &SAND_COLOR,
-            Cell::SandGenerator => &SAND_GENERATOR_COLOR,
-            Cell::Water => &WATER_COLOR,
-            Cell::WaterGenerator => &WATER_GENERATOR_COLOR,
-            Cell::Air => &AIR_COLOR,
+        let color = match cell.kind {
+            CellKind::Sand => &SAND_COLOR,
+            CellKind::SandGenerator => &SAND_GENERATOR_COLOR,
+            CellKind::Water => &WATER_COLOR,
+            CellKind::WaterGenerator => &WATER_GENERATOR_COLOR,
+            CellKind::Air => &AIR_COLOR,
         };
 
         out.extend_from_slice(color);

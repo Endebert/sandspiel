@@ -1,6 +1,5 @@
 pub struct Universe {
     pub area: Vec<Cell>,
-    handled_area: Vec<bool>,
     pub width: usize,
     pub height: usize,
 }
@@ -9,28 +8,27 @@ impl Universe {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             area: Self::gen_area(width, height),
-            handled_area: Self::gen_handled_area(width, height),
             width,
             height,
         }
     }
 
     fn gen_area(width: usize, height: usize) -> Vec<Cell> {
-        vec![Cell::Air; width * height]
+        vec![Cell::new(CellKind::Air, false); width * height]
     }
 
-    fn gen_handled_area(width: usize, height: usize) -> Vec<bool> {
-        vec![false; width * height]
-    }
-
-    pub fn fill(&mut self, area: &[Cell]) {
-        for (i, cell) in area.iter().enumerate() {
-            self.area[i] = *cell;
+    pub fn fill(&mut self, area: &[CellKind]) {
+        for (i, kind) in area.iter().enumerate() {
+            self.area[i] = Cell::new(kind.clone(), false);
         }
     }
 
     pub fn get_cell(&self, pos: Position) -> Option<&Cell> {
         self.area.get(pos)
+    }
+
+    pub fn get_cell_mut(&mut self, pos: Position) -> Option<&mut Cell> {
+        self.area.get_mut(pos)
     }
 
     pub fn set_cell(&mut self, cell: Cell, pos: Position) {
@@ -41,24 +39,27 @@ impl Universe {
         self.area.swap(pos1, pos2);
     }
 
-    pub fn is_handled(&self, pos: Position) -> Option<&bool> {
-        self.handled_area.get(pos)
-    }
-
-    pub fn set_handled(&mut self, pos: Position) {
-        self.handled_area[pos] = true;
-    }
-
     pub fn get_neighbor(&self, pos: Position, dir: Direction) -> Option<(&Cell, Position)> {
-        self.get_neighbor_pos(pos, dir)
+        self.get_neighbor_pos(&pos, &dir)
             .map(|other_pos| (self.get_cell(other_pos).unwrap(), other_pos))
     }
 
-    pub fn set_all_unhandled(&mut self) {
-        self.handled_area.fill(false);
+    pub fn get_neighbor_mut(
+        &mut self,
+        pos: &Position,
+        dir: &Direction,
+    ) -> Option<(&mut Cell, Position)> {
+        self.get_neighbor_pos(&pos, &dir)
+            .map(|other_pos| (self.get_cell_mut(other_pos).unwrap(), other_pos))
     }
 
-    fn get_neighbor_pos(&self, pos: Position, dir: Direction) -> Option<Position> {
+    pub fn set_all_unhandled(&mut self) {
+        for mut cell in &mut self.area {
+            cell.handled = false;
+        }
+    }
+
+    fn get_neighbor_pos(&self, pos: &Position, dir: &Direction) -> Option<Position> {
         let pos_x = pos % self.height;
 
         let offset_hor: isize = match dir {
@@ -97,7 +98,19 @@ impl Universe {
 
 pub type Position = usize;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone)]
+pub struct Velocity {
+    pub x: i8,
+    pub y: i8,
+}
+
+impl Velocity {
+    pub fn new() -> Self {
+        Self { x: 0, y: 0 }
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub enum Direction {
     Up,
     Down,
@@ -109,12 +122,29 @@ pub enum Direction {
     RightDown,
 }
 
-#[derive(Clone, Copy)]
-pub enum Cell {
+#[derive(Clone, PartialEq)]
+pub enum CellKind {
     Sand,
     SandGenerator,
     Water,
     WaterGenerator,
     Air,
     // Solid,
+}
+
+#[derive(Clone)]
+pub struct Cell {
+    pub kind: CellKind,
+    pub velocity: Velocity,
+    pub handled: bool,
+}
+
+impl Cell {
+    pub fn new(kind: CellKind, handled: bool) -> Self {
+        Self {
+            kind,
+            velocity: Velocity::new(),
+            handled,
+        }
+    }
 }

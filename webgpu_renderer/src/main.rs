@@ -1,5 +1,5 @@
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, Universe};
+use simulation::universe::{Cell, CellKind, Universe};
 use wgpu::Color;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -259,12 +259,12 @@ fn to_u8(universe: &Universe) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for (i, c) in universe.area.iter().enumerate() {
-        let color = match c {
-            Cell::Sand => &SAND_COLOR,
-            Cell::SandGenerator => &SAND_GENERATOR_COLOR,
-            Cell::Water => &WATER_COLOR,
-            Cell::WaterGenerator => &WATER_GENERATOR_COLOR,
-            Cell::Air => &AIR_COLOR,
+        let color = match c.kind {
+            CellKind::Sand => &SAND_COLOR,
+            CellKind::SandGenerator => &SAND_GENERATOR_COLOR,
+            CellKind::Water => &WATER_COLOR,
+            CellKind::WaterGenerator => &WATER_GENERATOR_COLOR,
+            CellKind::Air => &AIR_COLOR,
         };
 
         out.extend_from_slice(color);
