@@ -1,7 +1,8 @@
 use crate::universe::Direction::*;
 
+#[derive(Debug)]
 pub struct Universe {
-    pub area: Vec<Cell>,
+    pub area: Vec<CellInternal>,
     pub width: usize,
     pub height: usize,
 }
@@ -15,62 +16,65 @@ impl Universe {
         }
     }
 
-    fn gen_area(width: usize, height: usize) -> Vec<Cell> {
-        vec![Cell::new(CellKind::Air, false); width * height]
+    fn gen_area(width: usize, height: usize) -> Vec<CellInternal> {
+        vec![CellInternal::new(CellKind::Air, false, 0); width * height]
     }
 
     pub fn fill(&mut self, area: &[CellKind]) {
         for (i, kind) in area.iter().enumerate() {
-            self.area[i] = Cell::new(kind.clone(), false);
+            self.area[i] = CellInternal::new(kind.clone(), false, 0);
         }
     }
 
-    pub(crate) fn get_cell(&self, pos: &Position) -> Option<&Cell> {
-        self.area.get(self.pos_to_i(pos))
+    pub(crate) fn get_cell(&self, pos: &Position) -> Option<Cell> {
+        let internal = self.area.get(self.pos_to_i(pos))?;
+
+        Some(Cell::new(internal.clone(), pos.clone()))
     }
 
-    pub(crate) fn get_cell_mut(&mut self, pos: &Position) -> Option<&mut Cell> {
+    pub(crate) fn set_cell(&mut self, internal: CellInternal, pos: &Position) -> Cell {
         let index = self.pos_to_i(pos);
-        self.area.get_mut(index)
+        self.area[index] = internal;
+
+        self.get_cell(pos).unwrap()
     }
 
-    pub(crate) fn set_cell(&mut self, cell: Cell, pos: &Position) {
-        let index = self.pos_to_i(pos);
-        self.area[index] = cell;
-    }
+    pub(crate) fn swap_cells(&mut self, cell1: Cell, cell2: Cell) -> (Cell, Cell) {
+        let index1 = self.pos_to_i(cell1.position());
+        let index2 = self.pos_to_i(cell2.position());
 
-    pub(crate) fn swap_cells(&mut self, pos1: &Position, pos2: &Position) {
-        let index1 = self.pos_to_i(pos1);
-        let index2 = self.pos_to_i(pos2);
         self.area.swap(index1, index2);
+
+        // TODO: might have to get_cell here
+        let new_cell1 = self.get_cell(cell1.position()).unwrap();
+        let new_cell2 = self.get_cell(cell2.position()).unwrap();
+
+        (new_cell1, new_cell2)
     }
 
-    pub(crate) fn get_neighbor(
-        &self,
-        pos: &Position,
-        dir: &Direction,
-    ) -> Option<(&Cell, Position)> {
-        let neighbor_pos = self.get_neighbor_pos(&pos, dir)?;
+    pub(crate) fn get_neighbor(&self, cell: &Cell, dir: &Direction) -> Option<Cell> {
+        let neighbor_pos = self.get_neighbor_pos(cell.position(), dir)?;
         let neighbor = self.get_cell(&neighbor_pos)?;
 
-        Some((neighbor, neighbor_pos))
-    }
-
-    pub(crate) fn get_neighbor_mut(
-        &mut self,
-        pos: &Position,
-        dir: &Direction,
-    ) -> Option<(&mut Cell, Position)> {
-        let neighbor_pos = self.get_neighbor_pos(&pos, &dir)?;
-        let neighbor = self.get_cell_mut(&neighbor_pos)?;
-
-        Some((neighbor, neighbor_pos))
+        Some(neighbor)
     }
 
     pub fn set_all_unhandled(&mut self) {
         for mut cell in &mut self.area {
             cell.handled = false;
         }
+    }
+
+    pub fn set_handled(&mut self, cell: Cell) -> Cell {
+        let pos = cell.position();
+
+        self.set_cell(CellInternal::new(cell.internal.kind.clone(), true, 0), pos)
+    }
+
+    pub fn set_velocity(&mut self, cell: Cell, velocity: Velocity) -> Cell {
+        let pos = cell.position();
+
+        self.set_cell(CellInternal::new(cell.internal.kind.clone(), true, 0), pos)
     }
 
     fn get_neighbor_pos(&self, pos: &Position, dir: &Direction) -> Option<Position> {
@@ -108,10 +112,16 @@ impl Universe {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct Position {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+impl Position {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self { x, y }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -126,7 +136,7 @@ pub enum Direction {
     RightDown,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CellKind {
     Sand,
     SandGenerator,
@@ -138,20 +148,48 @@ pub enum CellKind {
 
 pub type Velocity = i8;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Cell {
-    pub kind: CellKind,
-    pub velocity: Velocity,
-    pub handled: bool,
+    position: Position,
+    internal: CellInternal,
 }
 
 impl Cell {
-    pub fn new(kind: CellKind, handled: bool) -> Self {
+    fn new(internal: CellInternal, position: Position) -> Self {
+        Self { position, internal }
+    }
+
+    pub fn position(&self) -> &Position {
+        &self.position
+    }
+    pub fn kind(&self) -> &CellKind {
+        &self.internal.kind
+    }
+    pub fn velocity(&self) -> &Velocity {
+        &self.internal.velocity
+    }
+    pub fn handled(&self) -> bool {
+        self.internal.handled
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CellInternal {
+    kind: CellKind,
+    velocity: Velocity,
+    handled: bool,
+}
+
+impl CellInternal {
+    pub fn new(kind: CellKind, handled: bool, velocity: Velocity) -> Self {
         Self {
             kind,
-            velocity: 0,
+            velocity,
             handled,
         }
+    }
+    pub fn kind(&self) -> &CellKind {
+        &self.kind
     }
 }
 
@@ -159,11 +197,38 @@ impl Cell {
 mod tests {
     use super::*;
 
+    // #[test]
+    // fn cannot_get_neighor_right_on_edge() {
+    //     let universe = Universe::new(3, 3);
+    //     assert!(universe
+    //         .get_neighbor(&Position { x: 2, y: 1 }, &Right)
+    //         .is_none());
+    // }
+
     #[test]
-    fn cannot_get_neighor_right_on_edge() {
-        let universe = Universe::new(3, 3);
-        assert!(universe
-            .get_neighbor(&Position { x: 2, y: 1 }, &Right)
-            .is_none());
+    fn can_swap_cells() {
+        let mut uni = Universe::new(2, 1);
+        uni.fill(&[CellKind::Water, CellKind::Sand]);
+
+        let cell1 = uni.get_cell(&Position::new(0, 0)).unwrap();
+        let cell2 = uni.get_cell(&Position::new(1, 0)).unwrap();
+
+        let o_cell1 = cell1.clone();
+        let o_cell2 = cell2.clone();
+
+        assert_ne!(cell1, cell2);
+
+        println!("pre-swap:  {:?}", uni);
+
+        let (n_cell1, n_cell2) = uni.swap_cells(cell1, cell2);
+
+        println!("post-swap: {:?}", uni);
+
+        assert_ne!(n_cell1, n_cell2);
+        assert_ne!(o_cell1.kind(), n_cell2.kind());
+        assert_ne!(o_cell2.kind(), n_cell2.kind());
+
+        assert_eq!(o_cell1.position(), n_cell1.position());
+        assert_eq!(o_cell2.position(), n_cell2.position());
     }
 }

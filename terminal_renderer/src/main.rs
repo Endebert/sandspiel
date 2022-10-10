@@ -1,5 +1,5 @@
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellKind, Universe};
+use simulation::universe::{Cell, CellInternal, CellKind, Universe};
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::thread::sleep;
@@ -39,8 +39,8 @@ fn main() {
 }
 
 pub fn draw(universe: &Universe) {
-    let cell_to_char = |cell: &Cell| -> char {
-        match cell.kind {
+    let cell_to_char = |cell: &CellInternal| -> char {
+        match cell.kind() {
             CellKind::Sand => '■',
             CellKind::SandGenerator => 'S',
             CellKind::Air => ' ',

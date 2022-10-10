@@ -1,7 +1,9 @@
 use crate::universe::CellKind::*;
 use crate::universe::Direction::*;
-use crate::universe::{Cell, Position, Universe, Velocity};
+use crate::universe::{Cell, CellInternal, CellKind, Direction, Position, Universe, Velocity};
 use rand::random;
+use std::borrow::Borrow;
+use std::collections::HashMap;
 
 pub struct Simulation {
     pub universe: Universe,
@@ -18,132 +20,185 @@ impl Simulation {
     pub fn tick(&mut self) {
         self.universe.set_all_unhandled();
 
-        for index in (0..self.universe.area.len()).rev() {
-            self.handle_cell_at(self.universe.i_to_pos(index), false);
-        }
+        // for index in (0..self.universe.area.len()).rev() {
+        //     self.handle_cell_at(self.universe.i_to_pos(index), false);
+        // }
     }
 
     fn handle_cell_at(&mut self, pos: Position, force: bool) {
-        let cell = self.universe.get_cell_mut(&pos).unwrap();
+        let cell = self.universe.borrow().get_cell(&pos.clone()).unwrap();
 
-        if cell.handled && !force {
+        if cell.handled() && !force {
             return;
         }
 
-        cell.handled = true;
+        let cell = self.universe.set_handled(cell);
 
-        let initial_velocity = cell.velocity.clone();
-
-        let (final_pos, final_velocity) = match cell.kind {
-            Air => self.handle_air(pos, initial_velocity),
-            Sand => self.handle_sand(pos, initial_velocity),
-            SandGenerator => self.handle_sand_generator(pos, initial_velocity),
-            Water => self.handle_water(pos, initial_velocity),
-            WaterGenerator => self.handle_water_generator(pos, initial_velocity),
+        match cell.kind() {
+            Air => self.handle_air(cell),
+            Sand => self.handle_sand(cell),
+            SandGenerator => self.handle_sand_generator(cell),
+            Water => self.handle_water(cell),
+            WaterGenerator => self.handle_water_generator(cell),
         };
-
-        self.universe.get_cell_mut(&final_pos).unwrap().velocity = final_velocity;
     }
 
-    fn handle_sand(&mut self, pos: Position, velocity: Velocity) -> (Position, Velocity) {
-        let mut current_pos = pos;
-        let mut moves = velocity.abs() + 1;
+    fn handle_sand(&mut self, cell: Cell) {
+        let mut moves = cell.velocity().abs();
+
+        let mut current_cell = cell;
 
         'outer_loop: while moves > 0 {
             moves -= 1;
             'inner_loop: for dir in [Down, RightDown, LeftDown] {
-                if let Some((other_cell, other_pos)) =
-                    self.universe.get_neighbor_mut(&current_pos, &dir)
-                {
-                    match other_cell.kind {
-                        Air => {
-                            self.universe.swap_cells(&current_pos, &other_pos);
-                            current_pos = other_pos;
-                            continue 'outer_loop;
-                        }
+                if let Some(mut other_cell) = self.universe.get_neighbor(&current_cell, &dir) {
+                    match other_cell.kind() {
                         Water => {
-                            // if dir == Down {
-                            self.universe.swap_cells(&current_pos, &other_pos);
-                            // want the switched water cell to be handled as well, as it might have been put past the iteration cursor
-                            self.handle_cell_at(current_pos, true);
-                            current_pos = other_pos;
+                            (other_cell, current_cell) =
+                                self.universe.swap_cells(current_cell, other_cell);
+                            self.handle_cell_at(other_cell.position().clone(), true);
+                            // upon collision with water we want to reset the velocity, so we break the inner loop
                             break 'inner_loop;
+                        }
+                        Air => {
+                            (_, current_cell) = self.universe.swap_cells(current_cell, other_cell);
+                            continue 'outer_loop;
                         }
                         _ => {}
                     }
                 }
             }
-            return (current_pos, 0);
+            // we checked all neighbors and couldnt move, so we save cell with velocity = 0
+            self.universe.set_velocity(current_cell, 0);
+            return;
         }
-
-        (current_pos, velocity + 1)
+        let final_velocity = current_cell.velocity() + 1;
+        self.universe.set_velocity(current_cell, final_velocity);
     }
 
-    fn handle_water(&mut self, pos: Position, velocity: Velocity) -> (Position, Velocity) {
-        let mut current_pos = pos;
-        let mut moves = velocity.abs() + 1;
+    fn handle_water(&mut self, cell: Cell) {
+        let mut moves = cell.velocity().abs();
+
+        let mut current_cell = cell;
+
         'outer_loop: while moves > 0 {
             moves -= 1;
             for dir in [Down, RightDown, LeftDown, Right, Left] {
-                if let Some((other_cell, other_pos)) =
-                    self.universe.get_neighbor(&current_pos, &dir)
-                {
-                    match other_cell.kind {
+                if let Some(other_cell) = self.universe.get_neighbor(&current_cell, &dir) {
+                    match other_cell.kind() {
                         Air => {
-                            self.universe.swap_cells(&current_pos, &other_pos);
-                            current_pos = other_pos;
+                            (_, current_cell) = self.universe.swap_cells(current_cell, other_cell);
                             continue 'outer_loop;
                         }
                         _ => {}
                     }
                 }
             }
-            return (current_pos, 0);
+            // we checked all neighbors and couldnt move, so we save cell with velocity = 0
+            self.universe.set_velocity(current_cell, 0);
+            return;
         }
-
-        (current_pos, velocity + 1)
+        let final_velocity = current_cell.velocity() + 1;
+        self.universe.set_velocity(current_cell, final_velocity);
     }
 
-    fn handle_sand_generator(&mut self, pos: Position, velocity: Velocity) -> (Position, Velocity) {
+    // fn handle_sand(&mut self, cell: Cell) {
+    //     // let mut current_pos = pos;
+    //     let mut moves = cell.velocity().abs();
+    //
+    //     'outer_loop: while moves > 0 {
+    //         moves -= 1;
+    //         'inner_loop: for dir in [Down, RightDown, LeftDown] {
+    //             if let Some((other_cell, other_pos)) =
+    //                 self.universe.get_neighbor_mut(&current_pos, &dir)
+    //             {
+    //                 match other_cell.kind {
+    //                     Air => {
+    //                         self.universe.swap_cells(&current_pos, &other_pos);
+    //                         current_pos = other_pos;
+    //                         continue 'outer_loop;
+    //                     }
+    //                     Water => {
+    //                         // if dir == Down {
+    //                         self.universe.swap_cells(&current_pos, &other_pos);
+    //                         // want the switched water cell to be handled as well, as it might have been put past the iteration cursor
+    //                         self.handle_cell_at(current_pos, true);
+    //                         current_pos = other_pos;
+    //                         break 'inner_loop;
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         return (current_pos, 0);
+    //     }
+    //
+    //     (current_pos, velocity + 1)
+    // }
+    //
+    // fn handle_water(&mut self, cell: Cell) {
+    //     let mut current_pos = pos;
+    //     let mut moves = velocity.abs() + 1;
+    //     'outer_loop: while moves > 0 {
+    //         moves -= 1;
+    //         for dir in [Down, RightDown, LeftDown, Right, Left] {
+    //             if let Some((other_cell, other_pos)) =
+    //                 self.universe.get_neighbor(&current_pos, &dir)
+    //             {
+    //                 match other_cell.kind {
+    //                     Air => {
+    //                         self.universe.swap_cells(&current_pos, &other_pos);
+    //                         current_pos = other_pos;
+    //                         continue 'outer_loop;
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         }
+    //         return (current_pos, 0);
+    //     }
+    //
+    //     (current_pos, velocity + 1)
+    // }
+    //
+    fn handle_sand_generator(&mut self, cell: Cell) {
         for dir in [Down] {
-            if let Some((other_cell, other_pos)) = self.universe.get_neighbor(&pos, &dir) {
-                match other_cell.kind {
+            if let Some(other_cell) = self.universe.get_neighbor(&cell, &dir) {
+                match other_cell.kind() {
                     Air => {
                         if random() {
-                            self.universe.set_cell(Cell::new(Sand, true), &other_pos);
-                            break;
+                            self.universe.set_cell(
+                                CellInternal::new(CellKind::Sand, true, 0),
+                                cell.position(),
+                            );
                         }
                     }
                     _ => {}
                 }
             }
         }
-        (pos, velocity)
     }
 
-    fn handle_water_generator(
-        &mut self,
-        pos: Position,
-        velocity: Velocity,
-    ) -> (Position, Velocity) {
+    fn handle_water_generator(&mut self, cell: Cell) {
         for dir in [Down] {
-            if let Some((other_cell, other_pos)) = self.universe.get_neighbor(&pos, &dir) {
-                match other_cell.kind {
+            if let Some(other_cell) = self.universe.get_neighbor(&cell, &dir) {
+                match other_cell.kind() {
                     Air => {
                         if random() {
-                            self.universe.set_cell(Cell::new(Water, true), &other_pos);
-                            break;
+                            self.universe.set_cell(
+                                CellInternal::new(CellKind::Water, true, 0),
+                                cell.position(),
+                            );
                         }
                     }
                     _ => {}
                 }
             }
         }
-        (pos, velocity)
     }
 
-    fn handle_air(&self, pos: Position, velocity: Velocity) -> (Position, Velocity) {
+    fn handle_air(&mut self, cell: Cell) {
         // air doesn't move on its own
-        (pos, velocity)
+        // cell
     }
 }
