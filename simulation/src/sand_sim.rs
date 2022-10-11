@@ -20,13 +20,13 @@ impl Simulation {
     pub fn tick(&mut self) {
         self.universe.set_all_unhandled();
 
-        // for index in (0..self.universe.area.len()).rev() {
-        //     self.handle_cell_at(self.universe.i_to_pos(index), false);
-        // }
+        for index in (0..self.universe.area.len()).rev() {
+            self.handle_cell_at(&self.universe.i_to_pos(index), false);
+        }
     }
 
-    fn handle_cell_at(&mut self, pos: Position, force: bool) {
-        let cell = self.universe.borrow().get_cell(&pos.clone()).unwrap();
+    fn handle_cell_at(&mut self, pos: &Position, force: bool) {
+        let cell = self.universe.get_cell(&pos).unwrap();
 
         if cell.handled() && !force {
             return;
@@ -56,12 +56,13 @@ impl Simulation {
                         Water => {
                             (other_cell, current_cell) =
                                 self.universe.swap_cells(current_cell, other_cell);
-                            self.handle_cell_at(other_cell.position().clone(), true);
+                            self.handle_cell_at(other_cell.position(), true);
                             // upon collision with water we want to reset the velocity, so we break the inner loop
                             break 'inner_loop;
                         }
                         Air => {
-                            (_, current_cell) = self.universe.swap_cells(current_cell, other_cell);
+                            (other_cell, current_cell) =
+                                self.universe.swap_cells(current_cell, other_cell);
                             continue 'outer_loop;
                         }
                         _ => {}
@@ -84,10 +85,11 @@ impl Simulation {
         'outer_loop: while moves > 0 {
             moves -= 1;
             for dir in [Down, RightDown, LeftDown, Right, Left] {
-                if let Some(other_cell) = self.universe.get_neighbor(&current_cell, &dir) {
+                if let Some(mut other_cell) = self.universe.get_neighbor(&current_cell, &dir) {
                     match other_cell.kind() {
                         Air => {
-                            (_, current_cell) = self.universe.swap_cells(current_cell, other_cell);
+                            (other_cell, current_cell) =
+                                self.universe.swap_cells(current_cell, other_cell);
                             continue 'outer_loop;
                         }
                         _ => {}
@@ -169,7 +171,7 @@ impl Simulation {
                         if random() {
                             self.universe.set_cell(
                                 CellInternal::new(CellKind::Sand, true, 0),
-                                cell.position(),
+                                other_cell.position(),
                             );
                         }
                     }
@@ -187,7 +189,7 @@ impl Simulation {
                         if random() {
                             self.universe.set_cell(
                                 CellInternal::new(CellKind::Water, true, 0),
-                                cell.position(),
+                                other_cell.position(),
                             );
                         }
                     }

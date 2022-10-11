@@ -27,14 +27,20 @@ fn main() {
     //     S, A, S, S, S, A,
     // ];
 
+    // let mut sim = Simulation::new(5, 5);
+    //
+    // let mut fill_area = vec![CellKind::Air; 5];
+    // fill_area[1] = CellKind::SandGenerator;
+    // fill_area[3] = CellKind::WaterGenerator;
+
     sim.universe.fill(&*fill_area);
     let mut buf = String::new();
 
     loop {
         sim.tick();
         draw(&sim.universe);
-        let _ignored = io::stdin().read_line(&mut buf);
-        // sleep(Duration::from_millis(40))
+        // let _ignored = io::stdin().read_line(&mut buf);
+        sleep(Duration::from_millis(40))
     }
 }
 

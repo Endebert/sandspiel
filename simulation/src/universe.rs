@@ -1,4 +1,5 @@
 use crate::universe::Direction::*;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct Universe {
@@ -67,14 +68,17 @@ impl Universe {
 
     pub fn set_handled(&mut self, cell: Cell) -> Cell {
         let pos = cell.position();
+        let mut internal = cell.internal.clone();
+        internal.handled = true;
 
-        self.set_cell(CellInternal::new(cell.internal.kind.clone(), true, 0), pos)
+        self.set_cell(internal, pos)
     }
 
     pub fn set_velocity(&mut self, cell: Cell, velocity: Velocity) -> Cell {
         let pos = cell.position();
+        let kind = cell.internal.kind().clone();
 
-        self.set_cell(CellInternal::new(cell.internal.kind.clone(), true, 0), pos)
+        self.set_cell(CellInternal::new(kind, true, velocity), pos)
     }
 
     fn get_neighbor_pos(&self, pos: &Position, dir: &Direction) -> Option<Position> {
@@ -224,10 +228,11 @@ mod tests {
 
         println!("post-swap: {:?}", uni);
 
-        assert_ne!(n_cell1, n_cell2);
-        assert_ne!(o_cell1.kind(), n_cell2.kind());
-        assert_ne!(o_cell2.kind(), n_cell2.kind());
+        assert_ne!(n_cell1.kind(), n_cell2.kind());
+        assert_eq!(o_cell1.kind(), n_cell2.kind());
+        assert_eq!(o_cell2.kind(), n_cell1.kind());
 
+        assert_ne!(n_cell1.position(), n_cell2.position());
         assert_eq!(o_cell1.position(), n_cell1.position());
         assert_eq!(o_cell2.position(), n_cell2.position());
     }
