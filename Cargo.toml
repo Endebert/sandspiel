@@ -2,8 +2,9 @@
 resolver = "2"
 
 members = [
+    "universe",
     "simulation",
-    "webgpu_renderer",
-    "terminal_renderer",
-    "wasm-pack-renderer"
+#    "webgpu_renderer",
+#    "terminal_renderer",
+#    "wasm-pack-renderer"
 ]

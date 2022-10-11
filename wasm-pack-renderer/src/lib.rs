@@ -1,7 +1,7 @@
 mod utils;
 
+use simulation::lib::{Cell, CellKind, Universe};
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellKind, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 

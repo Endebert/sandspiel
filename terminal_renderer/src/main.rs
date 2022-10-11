@@ -1,5 +1,5 @@
+use simulation::lib::{Cell, CellInternal, CellKind, Universe};
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellInternal, CellKind, Universe};
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::thread::sleep;
