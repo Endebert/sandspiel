@@ -46,7 +46,6 @@ impl Universe {
 
         self.area.swap(index1, index2);
 
-        // TODO: might have to get_cell here
         let new_cell1 = self.get_cell(cell1.position()).unwrap();
         let new_cell2 = self.get_cell(cell2.position()).unwrap();
 
@@ -147,7 +146,10 @@ pub enum CellKind {
     Water,
     WaterGenerator,
     Air,
-    // Solid,
+    Fire,
+    Smoke,
+    Vapor,
+    Wood,
 }
 
 pub type Velocity = i8;
