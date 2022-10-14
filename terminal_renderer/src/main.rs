@@ -1,24 +1,24 @@
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellInternal, CellKind, Universe};
+use simulation::universe::{Cell, CellContent, Material, Universe};
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::thread::sleep;
 use std::time::Duration;
 
-const S: CellKind = CellKind::Sand;
-const A: CellKind = CellKind::Air;
-const W: CellKind = CellKind::Water;
-const w: CellKind = CellKind::WaterGenerator;
-const D: CellKind = CellKind::Wood;
-const V: CellKind = CellKind::Vapor;
-const F: CellKind = CellKind::Fire;
+const S: Material = Material::Sand;
+const A: Material = Material::Air;
+const W: Material = Material::Water;
+const w: Material = Material::WaterGenerator;
+const D: Material = Material::Wood;
+const V: Material = Material::Vapor;
+const F: Material = Material::Fire;
 
 fn main() {
     // let mut sim = Simulation::new(30, 15);
     //
-    // let mut fill_area = vec![CellKind::Air; 30];
-    // fill_area[10] = CellKind::SandGenerator;
-    // fill_area[20] = CellKind::WaterGenerator;
+    // let mut fill_area = vec![Material::Air; 30];
+    // fill_area[10] = Material::SandGenerator;
+    // fill_area[20] = Material::WaterGenerator;
 
     // let mut sim = Simulation::new(12, 30);
 
@@ -34,17 +34,16 @@ fn main() {
 
     let mut sim = Simulation::new(5, 5);
     //
-    // let mut fill_area = vec![CellKind::Air; 5];
-    // fill_area[1] = CellKind::SandGenerator;
-    // fill_area[3] = CellKind::WaterGenerator;
-
+    // let mut fill_area = vec![Material::Air; 5];
+    // fill_area[1] = Material::SandGenerator;
+    // fill_area[3] = Material::WaterGenerator;
 
     let fill_area_2d = [
-        [A, A, F, A ,A],
-        [A, A, A ,A ,A],
-        [A, A, A ,A ,A],
-        [A, A, A ,A ,A],
-        [D, D, D ,D ,D],
+        [A, A, F, A, A],
+        [A, A, A, A, A],
+        [A, A, A, A, A],
+        [A, A, A, A, A],
+        [D, D, D, D, D],
     ];
 
     let fill_area = fill_area_2d.concat();
@@ -61,17 +60,17 @@ fn main() {
 }
 
 pub fn draw(universe: &Universe) {
-    let cell_to_char = |cell: &CellInternal| -> char {
-        match cell.kind() {
-            CellKind::Sand => '■',
-            CellKind::SandGenerator => 'S',
-            CellKind::Air => ' ',
-            CellKind::Water => '◉',
-            CellKind::WaterGenerator => 'W',
-            CellKind::Fire => 'f',
-            CellKind::Smoke => '~',
-            CellKind::Vapor => '|',
-            CellKind::Wood => '=',
+    let content_to_char = |content: &CellContent| -> char {
+        match content.material {
+            Material::Sand => '■',
+            Material::SandGenerator => 'S',
+            Material::Air => ' ',
+            Material::Water => '◉',
+            Material::WaterGenerator => 'W',
+            Material::Fire => 'f',
+            Material::Smoke => '~',
+            Material::Vapor => '|',
+            Material::Wood => '=',
         }
     };
 
@@ -80,6 +79,6 @@ pub fn draw(universe: &Universe) {
     // print!("{esc}c", esc = 27 as char);
 
     for chunk in universe.area.chunks(universe.width) {
-        println!("{}", chunk.iter().map(cell_to_char).collect::<String>());
+        println!("{}", chunk.iter().map(content_to_char).collect::<String>());
     }
 }

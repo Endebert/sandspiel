@@ -1,8 +1,10 @@
 use crate::sand_sim::CollisionDesire::{Evade, Replace, SwapAndMove, SwapAndStop};
-use crate::universe::CellKind::{Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood};
 use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
-use crate::universe::{Cell, CellInternal, CellKind, Direction, Position, Universe, Velocity};
-use rand::{random, Rng, thread_rng};
+use crate::universe::Material::{
+    Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
+};
+use crate::universe::{Cell, CellContent, Direction, Material, Position, Universe};
+use rand::{random, thread_rng, Rng};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
@@ -27,42 +29,39 @@ impl Simulation {
     }
 
     fn handle_cell_at(&mut self, pos: &Position, force: bool) {
-        let cell = self.universe.get_cell(&pos).unwrap();
+        let mut cell = self.universe.get_cell(pos).unwrap();
 
-        if cell.handled() && !force {
+        if cell.content.handled && !force {
             return;
         }
 
-        let cell = self.universe.set_handled(cell);
-
-        self.handle_collision(cell);
+        self.handle_collision(&mut cell);
     }
 
-    fn handle_collision(&mut self, cell: Cell) {
-        let mut steps = cell.velocity().abs();
+    fn handle_collision(&mut self, cell: &mut Cell) {
+        let steps = cell.content.velocity.abs();
         let mut current_cell = cell;
-        'stepping: for step in 0..steps {
-            let kind = current_cell.kind();
-            'checking_directions: for dir in kind.directions() {
-                if let Some(mut other_cell) = self.universe.get_neighbor(&current_cell, &dir) {
-                    match kind.collide(other_cell.kind(), dir) {
+        'stepping: for _step in 0..=steps {
+            let material = &current_cell.content.material;
+            'checking_directions: for dir in material.directions() {
+                if let Some(mut neighbor) = self.universe.get_neighbor(current_cell, dir) {
+                    match material.collide(&neighbor.content.material, dir) {
                         SwapAndMove => {
-                            (other_cell, current_cell) =
-                                self.universe.swap_cells(current_cell, other_cell);
+                            self.universe.swap_cells(current_cell, &mut neighbor);
+                            self.handle_collision(current_cell);
+                            current_cell.clone_from(&neighbor);
                             continue 'stepping;
                         }
                         SwapAndStop => {
-                            (other_cell, current_cell) =
-                                self.universe.swap_cells(current_cell, other_cell);
-                            self.handle_cell_at(other_cell.position(), true);
+                            self.universe.swap_cells(current_cell, &mut neighbor);
+                            self.handle_collision(current_cell);
+                            current_cell.clone_from(&neighbor);
                             break 'checking_directions;
                         }
                         Replace(replace_kind) => {
                             if random() {
-                                self.universe.set_cell(
-                                    CellInternal::new(replace_kind, true, 0),
-                                    other_cell.position(),
-                                );
+                                neighbor.content = CellContent::new(replace_kind, true, 0);
+                                self.universe.save_cell(&neighbor);
                             }
                         }
                         Evade => {}
@@ -70,12 +69,15 @@ impl Simulation {
                 }
             }
             // we checked all neighbors and couldnt move, so we save cell with velocity = 0
-            self.universe.set_velocity(current_cell, 0);
+            current_cell.content.velocity = 0;
+            current_cell.content.handled = true;
+            self.universe.save_cell(current_cell);
             return;
         }
-        // we used all steps without stopping, so we increase velocity for next tick
-        let final_velocity = current_cell.velocity() + 1;
-        self.universe.set_velocity(current_cell, final_velocity);
+        // we used all steps without stopping, i.e. free fall, so we increase velocity for next tick
+        current_cell.content.velocity += 1;
+        current_cell.content.handled = true;
+        self.universe.save_cell(current_cell);
     }
 }
 
@@ -83,10 +85,10 @@ enum CollisionDesire {
     SwapAndMove,
     SwapAndStop,
     Evade,
-    Replace(CellKind),
+    Replace(Material),
 }
 
-impl CellKind {
+impl Material {
     fn directions(&self) -> &[Direction] {
         match self {
             Sand => &[Down, RightDown, LeftDown],
@@ -101,7 +103,7 @@ impl CellKind {
         }
     }
 
-    fn collide(&self, other: &CellKind, dir: &Direction) -> CollisionDesire {
+    fn collide(&self, other: &Self, dir: &Direction) -> CollisionDesire {
         match self {
             Sand => Self::collide_sand(other),
             SandGenerator => Self::collide_sand_generator(other),
@@ -115,7 +117,7 @@ impl CellKind {
         }
     }
 
-    fn collide_sand(other: &CellKind) -> CollisionDesire {
+    fn collide_sand(other: &Self) -> CollisionDesire {
         match other {
             Water => SwapAndStop,
             Air => SwapAndMove,
@@ -123,13 +125,13 @@ impl CellKind {
         }
     }
 
-    fn collide_sand_generator(other: &CellKind) -> CollisionDesire {
+    fn collide_sand_generator(other: &Self) -> CollisionDesire {
         match other {
             Air => Replace(Sand),
             _ => Evade,
         }
     }
-    fn collide_water(other: &CellKind) -> CollisionDesire {
+    fn collide_water(other: &Self) -> CollisionDesire {
         match other {
             Air => SwapAndMove,
             Fire => {
@@ -142,29 +144,27 @@ impl CellKind {
             _ => Evade,
         }
     }
-    fn collide_water_generator(other: &CellKind) -> CollisionDesire {
+    fn collide_water_generator(other: &Self) -> CollisionDesire {
         match other {
             Air => Replace(Water),
             _ => Evade,
         }
     }
-    fn collide_air(other: &CellKind) -> CollisionDesire {
+    fn collide_air(_other: &Self) -> CollisionDesire {
         Evade
     }
-    fn collide_fire(other: &CellKind, dir: &Direction) -> CollisionDesire {
+    fn collide_fire(other: &Self, dir: &Direction) -> CollisionDesire {
         match other {
-            Air => {
-                match dir {
-                    Down => SwapAndMove,
-                    _ => {
-                        if random() {
-                            Replace(Smoke)
-                        } else {
-                            Evade
-                        }
+            Air => match dir {
+                Down => SwapAndMove,
+                _ => {
+                    if random() {
+                        Replace(Smoke)
+                    } else {
+                        Evade
                     }
                 }
-            }
+            },
             Water => {
                 if random() {
                     Replace(Vapor)
@@ -179,24 +179,24 @@ impl CellKind {
                     Evade
                 }
             }
-            _ => Evade
+            _ => Evade,
         }
     }
-    fn collide_smoke(other: &CellKind) -> CollisionDesire {
+    fn collide_smoke(other: &Self) -> CollisionDesire {
         match other {
             Air => SwapAndStop,
             Vapor => SwapAndStop,
-            _ => Evade
+            _ => Evade,
         }
     }
-    fn collide_vapor(other: &CellKind) -> CollisionDesire {
+    fn collide_vapor(other: &Self) -> CollisionDesire {
         // TODO: should have a way to cool down and become water again
         match other {
             Air => SwapAndStop,
-            _ => Evade
+            _ => Evade,
         }
     }
-    fn collide_wood(other: &CellKind) -> CollisionDesire {
+    fn collide_wood(_other: &Self) -> CollisionDesire {
         Evade
     }
 }
