@@ -1,6 +1,6 @@
-use crate::sand_sim::CollisionDesire::*;
-use crate::universe::CellKind::*;
-use crate::universe::Direction::*;
+use crate::sand_sim::CollisionDesire::{Evade, Replace, SwapAndMove, SwapAndStop};
+use crate::universe::CellKind::{Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood};
+use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 use crate::universe::{Cell, CellInternal, CellKind, Direction, Position, Universe, Velocity};
 use rand::{random, Rng, thread_rng};
 use std::borrow::Borrow;
@@ -55,7 +55,6 @@ impl Simulation {
                             (other_cell, current_cell) =
                                 self.universe.swap_cells(current_cell, other_cell);
                             self.handle_cell_at(other_cell.position(), true);
-                            // upon collision with water we want to reset the velocity, so we break the inner loop
                             break 'checking_directions;
                         }
                         Replace(replace_kind) => {

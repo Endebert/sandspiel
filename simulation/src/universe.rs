@@ -1,5 +1,4 @@
-use crate::universe::Direction::*;
-use std::fmt::{Display, Formatter};
+use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 
 #[derive(Debug)]
 pub struct Universe {
