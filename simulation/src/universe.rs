@@ -85,13 +85,13 @@ impl Universe {
         let x = match dir {
             Left | LeftUp | LeftDown => x.checked_sub(1)?,
             Right | RightUp | RightDown => x.checked_add(1)?,
-            _ => x,
+            Up | Down => x,
         };
 
         let y = match dir {
             Up | LeftUp | RightUp => y.checked_sub(1)?,
             Down | LeftDown | RightDown => y.checked_add(1)?,
-            _ => y,
+            Left | Right => y,
         };
 
         if x < self.width && y < self.height {
@@ -112,6 +112,10 @@ impl Universe {
         let Position { x, y } = position;
 
         y * self.width + x
+    }
+
+    pub fn positions(&self) -> impl Iterator<Item=Position> + '_ {
+        (0..self.area.len()).rev().map(|i| self.i_to_pos(i))
     }
 }
 
