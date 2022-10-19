@@ -125,7 +125,13 @@ impl Material {
 
     fn collide_sand_generator(other: &Self) -> CollisionDesire {
         match other {
-            Air => Replace(Sand),
+            Air => {
+                if random() {
+                    Replace(Sand)
+                } else {
+                    Evade
+                }
+            }
             _ => Evade,
         }
     }
@@ -144,7 +150,13 @@ impl Material {
     }
     fn collide_water_generator(other: &Self) -> CollisionDesire {
         match other {
-            Air => Replace(Water),
+            Air => {
+                if random() {
+                    Replace(Water)
+                } else {
+                    Evade
+                }
+            }
             _ => Evade,
         }
     }
