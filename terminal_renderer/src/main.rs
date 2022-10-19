@@ -61,7 +61,7 @@ fn main() {
     }
 }
 
-pub fn get_as_string(area: &Vec<CellContent>, width: usize) -> String {
+pub fn get_as_string(area: &[CellContent], width: usize) -> String {
     let lines: Vec<String> = area
         .chunks(width)
         .map(|chunk| chunk.iter().map(content_to_char).collect::<String>())
