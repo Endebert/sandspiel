@@ -58,11 +58,9 @@ impl Simulation {
                             current_cell.clone_from(&neighbor);
                             break 'checking_directions;
                         }
-                        Replace(replace_kind) => {
-                            if random() {
-                                neighbor.content = CellContent::new(replace_kind, true, 0);
-                                self.universe.save_cell(&neighbor);
-                            }
+                        Replace(replace_material) => {
+                            neighbor.content = CellContent::new(replace_material, true, 0);
+                            self.universe.save_cell(&neighbor);
                         }
                         Evade => {}
                     }

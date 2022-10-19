@@ -1,3 +1,5 @@
+extern crate core;
+
 use simulation::sand_sim::Simulation;
 use simulation::universe::{Cell, CellContent, Material, Universe};
 use std::fmt::{Display, Formatter};
@@ -52,33 +54,42 @@ fn main() {
     let mut buf = String::new();
 
     loop {
-        sim.tick();
         draw(&sim.universe);
         let _ignored = io::stdin().read_line(&mut buf);
-        // sleep(Duration::from_millis(40))
+        // sleep(Duration::from_millis(40));
+        sim.tick();
     }
 }
 
+pub fn get_as_string(area: &Vec<CellContent>, width: usize) -> String {
+    let lines: Vec<String> = area
+        .chunks(width)
+        .map(|chunk| chunk.iter().map(content_to_char).collect::<String>())
+        .collect();
+    lines.join("\n")
+}
+
 pub fn draw(universe: &Universe) {
-    let content_to_char = |content: &CellContent| -> char {
-        match content.material {
-            Material::Sand => '■',
-            Material::SandGenerator => 'S',
-            Material::Air => ' ',
-            Material::Water => '◉',
-            Material::WaterGenerator => 'W',
-            Material::Fire => 'f',
-            Material::Smoke => '~',
-            Material::Vapor => '|',
-            Material::Wood => '=',
-        }
-    };
-
     // clear screen
-    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-    // print!("{esc}c", esc = 27 as char);
+    // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+    // print!("{}[2J", 27 as char);
+    // print!("\x1B[2J\x1B[1;1H");
 
-    for chunk in universe.area.chunks(universe.width) {
-        println!("{}", chunk.iter().map(content_to_char).collect::<String>());
+    print!("{esc}c", esc = 27 as char);
+
+    println!("{}", get_as_string(&universe.area, universe.width));
+}
+
+fn content_to_char(content: &CellContent) -> char {
+    match content.material {
+        Material::Sand => '■',
+        Material::SandGenerator => 'S',
+        Material::Air => ' ',
+        Material::Water => '◉',
+        Material::WaterGenerator => 'W',
+        Material::Fire => 'f',
+        Material::Smoke => '~',
+        Material::Vapor => '|',
+        Material::Wood => '=',
     }
 }
