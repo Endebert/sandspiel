@@ -5,5 +5,5 @@ members = [
     "simulation",
 #    "webgpu_renderer",
     "terminal_renderer",
-#    "wasm-pack-renderer"
+    "wasm-pack-renderer",
 ]

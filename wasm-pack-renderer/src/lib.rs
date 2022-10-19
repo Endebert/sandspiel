@@ -1,7 +1,7 @@
 mod utils;
 
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellKind, Universe};
+use simulation::universe::{Material, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 
@@ -20,8 +20,9 @@ pub struct WasmPackRenderer {
 impl WasmPackRenderer {
     pub fn new(width: usize, height: usize) -> Self {
         let mut sim = Simulation::new(width, height);
-        let mut fill_area = vec![CellKind::Air; width];
-        fill_area[width / 2] = CellKind::SandGenerator;
+        let mut fill_area = vec![Material::Air; width];
+        fill_area[width / 3] = Material::SandGenerator;
+        fill_area[width / 2] = Material::WaterGenerator;
 
         sim.universe.fill(&*fill_area);
         Self { sim }
@@ -36,22 +37,30 @@ impl WasmPackRenderer {
     }
 }
 
-const AIR_COLOR: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+const AIR_COLOR: [u8; 4] = [0xff, 0xff, 0xff, 0x00];
 const WATER_COLOR: [u8; 4] = [0, 0, 0xff, 0xff];
 const SAND_COLOR: [u8; 4] = [0xff, 0xff, 0, 0xff];
 const WATER_GENERATOR_COLOR: [u8; 4] = [0, 0xff, 0xff, 0xff];
 const SAND_GENERATOR_COLOR: [u8; 4] = [0xff, 0, 0xff, 0xff];
+const FIRE_COLOR: [u8; 4] = [0xff, 0, 0, 0xff];
+const SMOKE_COLOR: [u8; 4] = [0x77, 0x77, 0x77, 0x77];
+const VAPOR_COLOR: [u8; 4] = [0, 0, 0xff, 0x77];
+const WOOD_COLOR: [u8; 4] = [0xDE, 0xB8, 0x87, 0xff];
 
 fn to_u8(universe: &Universe) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for cell in &universe.area {
-        let color = match cell.kind {
-            CellKind::Sand => &SAND_COLOR,
-            CellKind::SandGenerator => &SAND_GENERATOR_COLOR,
-            CellKind::Water => &WATER_COLOR,
-            CellKind::WaterGenerator => &WATER_GENERATOR_COLOR,
-            CellKind::Air => &AIR_COLOR,
+        let color = match cell.material {
+            Material::Sand => &SAND_COLOR,
+            Material::SandGenerator => &SAND_GENERATOR_COLOR,
+            Material::Water => &WATER_COLOR,
+            Material::WaterGenerator => &WATER_GENERATOR_COLOR,
+            Material::Air => &AIR_COLOR,
+            Material::Fire => &FIRE_COLOR,
+            Material::Smoke => &SMOKE_COLOR,
+            Material::Vapor => &VAPOR_COLOR,
+            Material::Wood => &WOOD_COLOR,
         };
 
         out.extend_from_slice(color);

@@ -4,9 +4,11 @@
     <meta charset="utf-8">
     <title>Hello wasm-pack!</title>
   </head>
-  <body>
+  <body style="height: 100vh">
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
-    <canvas id="sandspiel-canvas" width="200" height="200" style="scale: 2; image-rendering: pixelated"></canvas>
+    <div style="display:flex; width:100%; height:100%; justify-content:center">
+      <canvas id="sandspiel-canvas" width="200" height="200" style="image-rendering: pixelated"></canvas>
+    </div>
     <script src="./bootstrap.js"></script>
   </body>
 </html>
