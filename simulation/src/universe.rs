@@ -32,7 +32,7 @@ impl Universe {
         Some(Cell::new(material.clone(), pos.clone()))
     }
 
-    pub(crate) fn save_cell(&mut self, cell: &Cell) {
+    pub fn save_cell(&mut self, cell: &Cell) {
         let index = self.pos_to_i(&cell.position);
         self.area[index] = cell.content.clone();
     }

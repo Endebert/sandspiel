@@ -1,7 +1,7 @@
 mod utils;
 
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Material, Universe};
+use simulation::universe::{Cell, CellContent, Material, Position, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 
@@ -24,7 +24,7 @@ impl WasmPackRenderer {
         fill_area[width / 3] = Material::SandGenerator;
         fill_area[width / 2] = Material::WaterGenerator;
 
-        sim.universe.fill(&*fill_area);
+        sim.universe.fill(&fill_area);
         Self { sim }
     }
 
@@ -34,6 +34,18 @@ impl WasmPackRenderer {
 
     pub fn get_data(&self) -> Clamped<Vec<u8>> {
         Clamped(to_u8(&self.sim.universe))
+    }
+
+    pub fn add_material(&mut self, material: &str, x: isize, y: isize) {
+        let position = Position::new(x.unsigned_abs(), y.unsigned_abs());
+        let material = match material {
+            "sand" => Material::Sand,
+            "water" => Material::Water,
+            _ => Material::Air,
+        };
+        let content = CellContent::new(material, true, 0);
+
+        self.sim.universe.save_cell(&Cell { content, position });
     }
 }
 
