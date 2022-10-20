@@ -182,8 +182,8 @@ impl Material {
     }
     fn collide_fire(other: &Self, dir: &Direction) -> CollisionDesire {
         match other {
-            Air => match dir {
-                Down => SwapAndMove,
+            Air | Smoke | Vapor => match dir {
+                Down => SwapAndStop,
                 _ => {
                     if random() {
                         Replace(Smoke)
