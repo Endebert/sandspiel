@@ -1,4 +1,5 @@
 use crate::sand_sim::CollisionDesire::{Evade, Replace, SwapAndMove, SwapAndStop};
+use crate::sand_sim::ExtDirection::{Either, B};
 use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 use crate::universe::Material::{
     Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
@@ -44,6 +45,16 @@ impl Simulation {
         'stepping: for _step in 0..=steps {
             let material = &current_cell.content.material;
             'checking_directions: for dir in material.directions() {
+                let dir = match dir {
+                    B(d) => d,
+                    Either(a, b) => {
+                        if random() {
+                            a
+                        } else {
+                            b
+                        }
+                    }
+                };
                 if let Some(mut neighbor) = self.universe.get_neighbor(current_cell, dir) {
                     match material.collide(&neighbor.content.material, dir) {
                         SwapAndMove => {
@@ -87,16 +98,22 @@ enum CollisionDesire {
 }
 
 impl Material {
-    fn directions(&self) -> &[Direction] {
+    fn directions(&self) -> &[ExtDirection] {
         match self {
-            Sand => &[Down, RightDown, LeftDown],
-            SandGenerator => &[Down],
-            Water => &[Down, RightDown, LeftDown, Right, Left],
-            WaterGenerator => &[Down],
+            Sand => &[B(Down), Either(RightDown, LeftDown)],
+            SandGenerator => &[B(Down)],
+            Water => &[B(Down), Either(RightDown, LeftDown), Either(Right, Left)],
+            WaterGenerator => &[B(Down)],
             Air => &[],
-            Fire => &[Down, RightDown, LeftDown, Right, Left, Up, RightUp, LeftUp],
-            Smoke => &[Up, RightUp, LeftUp, Right, Left],
-            Vapor => &[Up, RightUp, LeftUp, Right, Left],
+            Fire => &[
+                B(Down),
+                Either(RightDown, LeftDown),
+                Either(Right, Left),
+                B(Up),
+                Either(RightUp, LeftUp),
+            ],
+            Smoke => &[B(Up), Either(RightUp, LeftUp), Either(Right, Left)],
+            Vapor => &[B(Up), Either(RightUp, LeftUp), Either(Right, Left)],
             Wood => &[],
         }
     }
@@ -209,4 +226,9 @@ impl Material {
     fn collide_wood(_other: &Self) -> CollisionDesire {
         Evade
     }
+}
+
+pub enum ExtDirection {
+    B(Direction),
+    Either(Direction, Direction),
 }
