@@ -5,7 +5,10 @@ let mouseDown = false
 let mousePosition = {x: 0, y: 0};
 
 // TODO: make changeMaterial available
-
+window.changeMaterial = (material) => {
+    console.log(material)
+    selectedMaterial = material
+}
 
 
 const canvas = document.getElementById("sandspiel-canvas");
