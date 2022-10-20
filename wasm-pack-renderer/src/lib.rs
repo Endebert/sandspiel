@@ -41,7 +41,11 @@ impl WasmPackRenderer {
         let material = match material {
             "sand" => Material::Sand,
             "water" => Material::Water,
-            _ => Material::Air,
+            "fire" => Material::Fire,
+            "smoke" => Material::Smoke,
+            "vapor" => Material::Vapor,
+            "wood" => Material::Wood,
+            _ => panic!("Tried to add unknown material '{material}'"),
         };
         let content = CellContent::new(material, true, 0);
 
