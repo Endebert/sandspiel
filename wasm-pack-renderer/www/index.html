@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/html">
   <head>
     <meta charset="utf-8">
     <title>Hello wasm-pack!</title>
@@ -11,6 +11,11 @@
       <form id="myForm">
         Materials
         <div>
+          <div>
+            <label>
+              <input id="paused-checkbox" type="checkbox">Paused
+            </label>
+          </div>
           <label>
             <input type="radio" name="material" onchange="changeMaterial('sand')" value="sand" checked>Sand
           </label>

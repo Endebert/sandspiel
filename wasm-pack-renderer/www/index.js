@@ -4,11 +4,19 @@ let selectedMaterial = "sand"
 let mouseDown = false
 let mousePosition = {x: 0, y: 0};
 
-// TODO: make changeMaterial available
 window.changeMaterial = (material) => {
     console.log(material)
     selectedMaterial = material
 }
+
+const pausedCheckbox = document.getElementById("paused-checkbox")
+
+pausedCheckbox.onchange = (event) => {
+    if (!pausedCheckbox.checked) {
+        requestAnimationFrame(renderLoop);
+    }
+}
+
 
 
 const canvas = document.getElementById("sandspiel-canvas");
@@ -48,6 +56,8 @@ const draw = () => {
 }
 
 const renderLoop = () => {
+    if (pausedCheckbox.checked) return;
+
     // TODO handle input
     if (mouseDown) {
         let pos = getMousePos();
