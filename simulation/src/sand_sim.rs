@@ -25,30 +25,29 @@ impl Simulation {
         self.universe.set_all_unhandled();
 
         for index in (0..self.universe.area.len()).rev() {
-            self.handle_cell_at(&self.universe.i_to_pos(index), false);
+            self.handle_cell_at(&self.universe.i_to_pos(index));
         }
     }
 
-    fn handle_cell_at(&mut self, pos: &Position, force: bool) {
+    fn handle_cell_at(&mut self, pos: &Position) {
         let mut cell = self.universe.get_cell(pos).unwrap();
-
-        if cell.content.handled && !force {
-            return;
-        }
-
         self.handle_collision(&mut cell);
     }
 
     fn handle_collision(&mut self, cell: &mut Cell) {
+        if cell.content.handled {
+            return;
+        }
         let steps = cell.content.velocity.abs();
         let mut current_cell = cell;
+        let rng: bool = random();
         'stepping: for _step in 0..=steps {
             let material = &current_cell.content.material;
             'checking_directions: for dir in material.directions() {
                 let dir = match dir {
                     B(d) => d,
                     Either(a, b) => {
-                        if random() {
+                        if rng {
                             a
                         } else {
                             b
@@ -59,12 +58,14 @@ impl Simulation {
                     match material.collide(&neighbor.content.material, dir) {
                         SwapAndMove => {
                             self.universe.swap_cells(current_cell, &mut neighbor);
+                            current_cell.content.handled = false;
                             self.handle_collision(current_cell);
                             current_cell.clone_from(&neighbor);
                             continue 'stepping;
                         }
                         SwapAndStop => {
                             self.universe.swap_cells(current_cell, &mut neighbor);
+                            current_cell.content.handled = false;
                             self.handle_collision(current_cell);
                             current_cell.clone_from(&neighbor);
                             break 'checking_directions;
@@ -155,6 +156,7 @@ impl Material {
     fn collide_water(other: &Self) -> CollisionDesire {
         match other {
             Air => SwapAndMove,
+            Vapor | Smoke => SwapAndStop,
             Fire => {
                 if random() {
                     Replace(Vapor)
