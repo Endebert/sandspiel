@@ -4,6 +4,8 @@ resolver = "2"
 members = [
     "simulation",
 #    "webgpu_renderer",
-    "terminal_renderer",
-    "wasm-pack-renderer",
+#    "terminal_renderer",
+#    "wasm-pack-renderer",
+#    "iced_renderer",
+    "pixels_renderer",
 ]
