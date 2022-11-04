@@ -1,17 +1,18 @@
+mod gui;
+
+use crate::gui::Framework;
 use log::{debug, error};
 use pixels::{Pixels, SurfaceTexture};
 use simulation::sand_sim::Simulation;
 use simulation::universe::{CellContent, Material, Universe};
 use winit::dpi::LogicalSize;
-use winit::event::StartCause::Poll;
-use winit::event::WindowEvent::{AxisMotion, CloseRequested, CursorMoved};
-use winit::event::{Event, VirtualKeyCode, WindowEvent};
+use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
-const WIDTH: u32 = 256;
-const HEIGHT: u32 = 256;
+const WIDTH: u32 = 64;
+const HEIGHT: u32 = 64;
 
 fn main() {
     env_logger::init();
@@ -44,38 +45,69 @@ fn main() {
         Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
     };
 
-    // let mut now = SystemTime::now();
+    let window_size = window.inner_size();
+    let scale_factor = window.scale_factor() as f32;
+
+    let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
     event_loop.run(move |event, _, control_flow| {
-        if let Event::RedrawRequested(_) = event {
-            // println!("draw at {}", now.elapsed().unwrap().as_millis());
-            // now = SystemTime::now();
-            draw(&sim.universe, pixels.get_frame_mut());
-            if pixels
-                .render()
-                .map_err(|e| error!("pixels.render() failed: {:?}", e))
-                .is_err()
-            {
-                *control_flow = ControlFlow::Exit;
-                return;
-            }
-            // sim.tick();
-            // window.request_redraw();
-        }
-
+        // Handle input events
         if input.update(&event) {
+            // Close events
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
                 *control_flow = ControlFlow::Exit;
                 return;
             }
 
+            // Update the scale factor
+            if let Some(scale_factor) = input.scale_factor() {
+                framework.scale_factor(scale_factor);
+            }
+
             // Resize the window
             if let Some(size) = input.window_resized() {
                 pixels.resize_surface(size.width, size.height);
+                framework.resize(size.width, size.height);
             }
 
+            // Update internal state and request a redraw
             sim.tick();
             window.request_redraw();
+        }
+
+        match event {
+            Event::WindowEvent { event, .. } => {
+                // Update egui inputs
+                framework.handle_event(&event);
+            }
+            // Draw the current frame
+            Event::RedrawRequested(_) => {
+                // Draw the world
+                draw(&sim.universe, pixels.get_frame_mut());
+
+                // Prepare egui
+                framework.prepare(&window);
+
+                // Render everything together
+                let render_result = pixels.render_with(|encoder, render_target, context| {
+                    // Render the world texture
+                    context.scaling_renderer.render(encoder, render_target);
+
+                    // Render egui
+                    framework.render(encoder, render_target, context);
+
+                    Ok(())
+                });
+
+                // Basic error handling
+                if render_result
+                    .map_err(|e| error!("pixels.render() failed: {:?}", e))
+                    .is_err()
+                {
+                    *control_flow = ControlFlow::Exit;
+                }
+            }
+            _ => (),
         }
     });
 }
