@@ -1,13 +1,12 @@
 use crate::sand_sim::CollisionDesire::{Evade, Replace, SwapAndMove, SwapAndStop};
-use crate::sand_sim::ExtDirection::{Either, B};
+use crate::sand_sim::ExtDirection::{One, Random};
 use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 use crate::universe::Material::{
     Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
 };
-use crate::universe::{Cell, CellContent, Direction, Material, Position, Universe};
-use rand::{random, thread_rng, Rng};
-use std::borrow::Borrow;
-use std::collections::HashMap;
+use crate::universe::{Cell, CellContent, Direction, Material, Universe};
+use rand::random;
+use std::slice::Iter;
 
 pub struct Simulation {
     pub universe: Universe,
@@ -21,53 +20,41 @@ impl Simulation {
         }
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn tick(&mut self) {
         self.universe.set_all_unhandled();
 
         for index in (0..self.universe.area.len()).rev() {
-            self.handle_cell_at(&self.universe.i_to_pos(index));
+            let pos = self.universe.i_to_pos(index);
+            let mut cell = self.universe.get_cell(&pos).unwrap();
+            cell.content.velocity += 1;
+            self.handle_collision(cell);
         }
     }
 
-    fn handle_cell_at(&mut self, pos: &Position) {
-        let mut cell = self.universe.get_cell(pos).unwrap();
-        self.handle_collision(&mut cell);
-    }
-
-    fn handle_collision(&mut self, cell: &mut Cell) {
+    fn handle_collision(&mut self, cell: Cell) {
         if cell.content.handled {
             return;
         }
         let steps = cell.content.velocity.abs();
         let mut current_cell = cell;
-        let rng: bool = random();
-        'stepping: for _step in 0..=steps {
+        'stepping: for _step in 0..steps {
             let material = &current_cell.content.material;
-            'checking_directions: for dir in material.directions() {
-                let dir = match dir {
-                    B(d) => d,
-                    Either(a, b) => {
-                        if rng {
-                            a
-                        } else {
-                            b
-                        }
-                    }
-                };
-                if let Some(mut neighbor) = self.universe.get_neighbor(current_cell, dir) {
+            'checking_directions: for dir in ExtDirIterator::new(material.directions()) {
+                if let Some(mut neighbor) = self.universe.get_neighbor(&current_cell, dir) {
                     match material.collide(&neighbor.content.material, dir) {
                         SwapAndMove => {
-                            self.universe.swap_cells(current_cell, &mut neighbor);
+                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
                             current_cell.content.handled = false;
                             self.handle_collision(current_cell);
-                            current_cell.clone_from(&neighbor);
+                            current_cell = neighbor;
                             continue 'stepping;
                         }
                         SwapAndStop => {
-                            self.universe.swap_cells(current_cell, &mut neighbor);
+                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
                             current_cell.content.handled = false;
                             self.handle_collision(current_cell);
-                            current_cell.clone_from(&neighbor);
+                            current_cell = neighbor;
                             break 'checking_directions;
                         }
                         Replace(replace_material) => {
@@ -81,13 +68,12 @@ impl Simulation {
             // we checked all neighbors and couldnt move, so we save cell with velocity = 0
             current_cell.content.velocity = 0;
             current_cell.content.handled = true;
-            self.universe.save_cell(current_cell);
+            self.universe.save_cell(&current_cell);
             return;
         }
-        // we used all steps without stopping, i.e. free fall, so we increase velocity for next tick
-        current_cell.content.velocity += 1;
+        // we used all steps without stopping, i.e. free fall
         current_cell.content.handled = true;
-        self.universe.save_cell(current_cell);
+        self.universe.save_cell(&current_cell);
     }
 }
 
@@ -98,23 +84,24 @@ enum CollisionDesire {
     Replace(Material),
 }
 
+#[allow(clippy::match_same_arms)]
 impl Material {
     fn directions(&self) -> &[ExtDirection] {
         match self {
-            Sand => &[B(Down), Either(RightDown, LeftDown)],
-            SandGenerator => &[B(Down)],
-            Water => &[B(Down), Either(RightDown, LeftDown), Either(Right, Left)],
-            WaterGenerator => &[B(Down)],
+            Sand => &[One(Down), Random(RightDown, LeftDown)],
+            SandGenerator => &[One(Down)],
+            Water => &[One(Down), Random(RightDown, LeftDown), Random(Right, Left)],
+            WaterGenerator => &[One(Down)],
             Air => &[],
             Fire => &[
-                B(Down),
-                Either(RightDown, LeftDown),
-                Either(Right, Left),
-                B(Up),
-                Either(RightUp, LeftUp),
+                One(Down),
+                Random(RightDown, LeftDown),
+                Random(Right, Left),
+                One(Up),
+                Random(RightUp, LeftUp),
             ],
-            Smoke => &[B(Up), Either(RightUp, LeftUp), Either(Right, Left)],
-            Vapor => &[B(Up), Either(RightUp, LeftUp), Either(Right, Left)],
+            Smoke => &[One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
+            Vapor => &[One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
             Wood => &[],
         }
     }
@@ -231,6 +218,45 @@ impl Material {
 }
 
 pub enum ExtDirection {
-    B(Direction),
-    Either(Direction, Direction),
+    One(Direction),
+    Random(Direction, Direction),
+}
+
+struct ExtDirIterator<'a> {
+    dirs: Iter<'a, ExtDirection>,
+    temp_remainder: Option<&'a Direction>,
+}
+
+impl<'a> ExtDirIterator<'a> {
+    pub fn new(dirs: &'a [ExtDirection]) -> Self {
+        Self {
+            dirs: dirs.iter(),
+            temp_remainder: None,
+        }
+    }
+}
+
+impl<'a> Iterator for ExtDirIterator<'a> {
+    type Item = &'a Direction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(remainder) = self.temp_remainder {
+            self.temp_remainder = None;
+            return Some(remainder);
+        }
+
+        let ext_dir = self.dirs.next()?;
+        match ext_dir {
+            One(d) => Some(d),
+            Random(a, b) => {
+                if random() {
+                    self.temp_remainder = Some(b);
+                    Some(a)
+                } else {
+                    self.temp_remainder = Some(a);
+                    Some(b)
+                }
+            }
+        }
+    }
 }
