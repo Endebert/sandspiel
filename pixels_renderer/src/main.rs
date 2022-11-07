@@ -4,15 +4,15 @@ use crate::gui::Framework;
 use log::{debug, error};
 use pixels::{Pixels, SurfaceTexture};
 use simulation::sand_sim::Simulation;
-use simulation::universe::{CellContent, Material, Universe};
+use simulation::universe::{Cell, CellContent, Material, Position, Universe};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
-const WIDTH: u32 = 64;
-const HEIGHT: u32 = 64;
+const WIDTH: u32 = 128;
+const HEIGHT: u32 = 128;
 
 fn main() {
     env_logger::init();
@@ -50,6 +50,7 @@ fn main() {
 
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
+    let mut mouse_pos = (-1f32, -1f32);
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
@@ -57,6 +58,24 @@ fn main() {
             if input.key_pressed(VirtualKeyCode::Escape) || input.quit() {
                 *control_flow = ControlFlow::Exit;
                 return;
+            }
+
+            if let Some(pos) = input.mouse() {
+                mouse_pos = pos;
+            }
+
+            if input.mouse_pressed(0) | input.mouse_held(0) {
+                match pixels.window_pos_to_pixel(mouse_pos) {
+                    Ok((x, y)) => {
+                        let content = CellContent::new(framework.gui.material.clone(), false, 0);
+                        let position = Position::new(x, y);
+                        let cell = Cell { content, position };
+                        sim.universe.save_cell(&cell);
+                    }
+                    Err(e) => {
+                        debug!("mouse position outside of window!: {:?}", mouse_pos)
+                    }
+                }
             }
 
             // Update the scale factor

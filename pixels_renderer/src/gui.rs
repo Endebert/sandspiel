@@ -16,12 +16,12 @@ pub(crate) struct Framework {
     textures: TexturesDelta,
 
     // State for the GUI
-    gui: Gui,
+    pub(crate) gui: Gui,
 }
 
 /// Example application state. A real application will need a lot more state than this.
-struct Gui {
-    material: Material,
+pub struct Gui {
+    pub material: Material,
 }
 
 impl Framework {
