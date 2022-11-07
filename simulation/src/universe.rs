@@ -137,7 +137,7 @@ pub enum Material {
     Wood,
 }
 
-pub type Velocity = i8;
+pub type Velocity = i16;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cell {
