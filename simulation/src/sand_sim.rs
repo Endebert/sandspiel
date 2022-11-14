@@ -184,7 +184,7 @@ impl Material {
 
     fn collide_sand(other: &Self) -> CollisionDesire {
         match other {
-            Water => SwapAndStop,
+            Water => rand_select(SwapAndStop, Evade),
             Air => SwapAndMove,
             _ => Evade,
         }
@@ -204,8 +204,8 @@ impl Material {
     }
     fn collide_water(other: &Self) -> CollisionDesire {
         match other {
-            Air => SwapAndMove,
-            Vapor | Smoke => SwapAndMove,
+            Air => rand_select(SwapAndMove, Evade),
+            Vapor | Smoke => rand_select(SwapAndMove, Evade),
             Fire => Eradicate(Vapor, Smoke),
             _ => Evade,
         }
@@ -239,7 +239,7 @@ impl Material {
     fn collide_smoke(other: &Self) -> CollisionDesire {
         match other {
             // Air => rand_select(SwapAndStop, GetConverted(Air)),
-            Air => SwapAndStop,
+            Air => rand_select(SwapAndStop, Evade),
             Vapor => rand_select(SwapAndStop, Eradicate(Water, Air)),
             _ => Evade,
         }
@@ -248,7 +248,7 @@ impl Material {
         // TODO: should have a way to cool down and become water again
         match other {
             // Air => rand_select3(SwapAndStop, GetConverted(Air), GetConverted(Water)),
-            Air => SwapAndStop,
+            Air => rand_select(SwapAndStop, Evade),
             Smoke => rand_select(SwapAndStop, Eradicate(Air, Water)),
             _ => Evade,
         }
