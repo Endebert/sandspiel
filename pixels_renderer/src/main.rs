@@ -72,8 +72,8 @@ fn main() {
                         let cell = Cell { content, position };
                         sim.universe.save_cell(&cell);
                     }
-                    Err(e) => {
-                        debug!("mouse position outside of window!: {:?}", mouse_pos)
+                    Err((x, y)) => {
+                        debug!("mouse position outside of window!: {:?}:{:?}", x, y)
                     }
                 }
             }
