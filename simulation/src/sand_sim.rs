@@ -1,11 +1,16 @@
-use crate::sand_sim::CollisionDesire::{Evade, Replace, SwapAndMove, SwapAndStop};
+use crate::sand_sim::CollisionDesire::{
+    Consume, Convert, Eradicate, Evade, GetConverted, SwapAndMove, SwapAndStop,
+};
 use crate::sand_sim::ExtDirection::{One, Random};
 use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 use crate::universe::Material::{
     Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
 };
 use crate::universe::{Cell, CellContent, Direction, Material, Universe};
-use rand::random;
+use rand::prelude::SliceRandom;
+use rand::rngs::ThreadRng;
+use rand::{random, thread_rng, Rng};
+use std::ops::Deref;
 use std::slice::Iter;
 
 pub struct Simulation {
@@ -57,11 +62,29 @@ impl Simulation {
                             current_cell = neighbor;
                             break 'checking_directions;
                         }
-                        Replace(replace_material) => {
+                        Convert(replace_material) => {
                             neighbor.content = CellContent::new(replace_material, true, 0);
                             self.universe.save_cell(&neighbor);
+                            break 'checking_directions;
                         }
                         Evade => {}
+                        Consume(mat) => {
+                            neighbor.content = CellContent::new(mat, false, 0);
+                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
+                            self.handle_collision(current_cell);
+                            current_cell = neighbor;
+                            break 'checking_directions;
+                        }
+                        GetConverted(mat) => {
+                            current_cell.content = CellContent::new(mat, true, 0);
+                            break 'checking_directions;
+                        }
+                        Eradicate(new_current_mat, new_neighbor_mat) => {
+                            current_cell.content = CellContent::new(new_current_mat, true, 0);
+                            neighbor.content = CellContent::new(new_neighbor_mat, true, 0);
+                            self.universe.save_cell(&neighbor);
+                            break 'checking_directions;
+                        }
                     }
                 }
             }
@@ -77,11 +100,50 @@ impl Simulation {
     }
 }
 
+/// [A, B] -> [A, B] // Evade, e.g. [Sand, Wood]
+/// [A, B] -> [B, A] // Swap, e.g. [Sand, Water]
+///
+/// [A, B] -> [A, C] // Convert, e.g. [Fire, Wood] -> [Fire, Fire]
+/// [A, B] -> [C, A] // Consume, e.g. [Water, Vapor] -> [Water, Water]
+///
+/// [A, B] -> [C, B] // (be) Converted ?, e.g. [Water, Ice] -> [Ice, Ice]
+/// [A, B] -> [B, C] // ?
+///
+/// [A, B] -> [C, D] // Eradicate ?, e.g. [Water, Fire], [Vapor, Smoke]
 enum CollisionDesire {
-    SwapAndMove,
-    SwapAndStop,
+    /// [A, B] -> [A, B] // Evade, e.g. [Sand, Wood]
     Evade,
-    Replace(Material),
+    /// [A, B] -> [B, A] // Swap, e.g. [Sand, Water]
+    SwapAndMove,
+    /// [A, B] -> [B, A] // Swap, e.g. [Sand, Water]
+    SwapAndStop,
+
+    /// [A, B] -> [A, C] // Convert, e.g. [Fire, Wood] -> [Fire, Fire]
+    Convert(Material),
+    /// [A, B] -> [C, A] // Consume, e.g. [Water, Vapor] -> [Water, Water]
+    Consume(Material),
+
+    /// [A, B] -> [C, B] // (be) Converted ?, e.g. [Water, Ice] -> [Ice, Ice]
+    GetConverted(Material),
+
+    /// [A, B] -> [C, D] // Eradicate ?, e.g. [Water, Fire], [Vapor, Smoke]
+    Eradicate(Material, Material),
+}
+
+fn rand_select<T>(a: T, b: T) -> T {
+    if random() {
+        a
+    } else {
+        b
+    }
+}
+
+fn rand_select3<T>(a: T, b: T, c: T) -> T {
+    match thread_rng().gen_range(0..3) {
+        0 => a,
+        1 => b,
+        _ => c,
+    }
 }
 
 #[allow(clippy::match_same_arms)]
@@ -132,7 +194,7 @@ impl Material {
         match other {
             Air => {
                 if random() {
-                    Replace(Sand)
+                    Convert(Sand)
                 } else {
                     Evade
                 }
@@ -143,14 +205,8 @@ impl Material {
     fn collide_water(other: &Self) -> CollisionDesire {
         match other {
             Air => SwapAndMove,
-            Vapor | Smoke => SwapAndStop,
-            Fire => {
-                if random() {
-                    Replace(Vapor)
-                } else {
-                    Evade
-                }
-            }
+            Vapor | Smoke => SwapAndMove,
+            Fire => Eradicate(Vapor, Smoke),
             _ => Evade,
         }
     }
@@ -158,7 +214,7 @@ impl Material {
         match other {
             Air => {
                 if random() {
-                    Replace(Water)
+                    Convert(Water)
                 } else {
                     Evade
                 }
@@ -172,43 +228,28 @@ impl Material {
     fn collide_fire(other: &Self, dir: &Direction) -> CollisionDesire {
         match other {
             Air | Smoke | Vapor => match dir {
-                Down => SwapAndStop,
-                _ => {
-                    if random() {
-                        Replace(Smoke)
-                    } else {
-                        Evade
-                    }
-                }
+                Down | LeftDown | RightDown => rand_select(SwapAndStop, Evade),
+                _ => Evade,
             },
-            Water => {
-                if random() {
-                    Replace(Vapor)
-                } else {
-                    Evade
-                }
-            }
-            Wood => {
-                if random() {
-                    Replace(Fire)
-                } else {
-                    Evade
-                }
-            }
+            Water => rand_select(Consume(Vapor), Eradicate(Smoke, Vapor)),
+            Wood => rand_select3(Consume(Smoke), Consume(Fire), Evade),
             _ => Evade,
         }
     }
     fn collide_smoke(other: &Self) -> CollisionDesire {
         match other {
+            // Air => rand_select(SwapAndStop, GetConverted(Air)),
             Air => SwapAndStop,
-            Vapor => SwapAndStop,
+            Vapor => rand_select(SwapAndStop, Eradicate(Water, Air)),
             _ => Evade,
         }
     }
     fn collide_vapor(other: &Self) -> CollisionDesire {
         // TODO: should have a way to cool down and become water again
         match other {
+            // Air => rand_select3(SwapAndStop, GetConverted(Air), GetConverted(Water)),
             Air => SwapAndStop,
+            Smoke => rand_select(SwapAndStop, Eradicate(Air, Water)),
             _ => Evade,
         }
     }
