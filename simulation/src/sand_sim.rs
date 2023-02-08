@@ -6,15 +6,19 @@ use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown,
 use crate::universe::Material::{
     Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
 };
-use crate::universe::{Cell, CellContent, Direction, Material, Universe};
+use crate::universe::{CellContent, Direction, Material, Position, Universe};
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::{random, thread_rng, Rng};
 use std::ops::Deref;
 use std::slice::Iter;
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 pub struct Simulation {
     pub universe: Universe,
+    tick_interval: u8,
+    tick: u8,
 }
 
 impl Simulation {
@@ -22,81 +26,121 @@ impl Simulation {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             universe: Universe::new(width, height),
+            tick_interval: 2,
+            tick: 0,
         }
     }
 
     #[allow(clippy::missing_panics_doc)]
     pub fn tick(&mut self) {
+        self.tick = (self.tick + 1) % self.tick_interval;
+        if self.tick != 0 {
+            return;
+        }
+
         self.universe.set_all_unhandled();
 
         for index in (0..self.universe.area.len()).rev() {
             let pos = self.universe.i_to_pos(index);
-            let mut cell = self.universe.get_cell(&pos).unwrap();
-            cell.content.velocity += 1;
-            self.handle_collision(cell);
+            // let cell = self.universe.get_cell(&pos).unwrap();
+            // {
+            // cell.lock().unwrap().velocity += 1;
+            // }
+            self.handle_collision(&pos);
         }
     }
 
-    fn handle_collision(&mut self, cell: Cell) {
-        if cell.content.handled {
+    fn handle_collision(&self, pos: &Position) {
+        let cell = self.universe.get_cell(pos).unwrap();
+        let steps;
+        let mut cell_content = cell.lock().unwrap();
+        if cell_content.handled {
             return;
         }
-        let steps = cell.content.velocity.abs();
-        let mut current_cell = cell;
-        'stepping: for _step in 0..steps {
-            let material = &current_cell.content.material;
-            'checking_directions: for dir in ExtDirIterator::new(material.directions()) {
-                if let Some(mut neighbor) = self.universe.get_neighbor(&current_cell, dir) {
-                    match material.collide(&neighbor.content.material, dir) {
-                        SwapAndMove => {
-                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
-                            current_cell.content.handled = false;
-                            self.handle_collision(current_cell);
-                            current_cell = neighbor;
-                            continue 'stepping;
-                        }
-                        SwapAndStop => {
-                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
-                            current_cell.content.handled = false;
-                            self.handle_collision(current_cell);
-                            current_cell = neighbor;
-                            break 'checking_directions;
-                        }
-                        Convert(replace_material) => {
-                            neighbor.content = CellContent::new(replace_material, true, 0);
-                            self.universe.save_cell(&neighbor);
-                            break 'checking_directions;
-                        }
-                        Evade => {}
-                        Consume(mat) => {
-                            neighbor.content = CellContent::new(mat, false, 0);
-                            self.universe.swap_cells(&mut current_cell, &mut neighbor);
-                            self.handle_collision(current_cell);
-                            current_cell = neighbor;
-                            break 'checking_directions;
-                        }
-                        GetConverted(mat) => {
-                            current_cell.content = CellContent::new(mat, true, 0);
-                            break 'checking_directions;
-                        }
-                        Eradicate(new_current_mat, new_neighbor_mat) => {
-                            current_cell.content = CellContent::new(new_current_mat, true, 0);
-                            neighbor.content = CellContent::new(new_neighbor_mat, true, 0);
-                            self.universe.save_cell(&neighbor);
-                            break 'checking_directions;
-                        }
+        cell_content.velocity += 1;
+        steps = cell_content.velocity.abs();
+        drop(cell_content);
+        self.step(pos, cell, steps);
+    }
+
+    fn step(&self, pos: &Position, cell: &Arc<Mutex<CellContent>>, steps_remaining: i16) {
+        let mut cell_content = cell.lock().unwrap();
+
+        if steps_remaining == 0 {
+            // we used all steps without stopping, i.e. free fall
+            cell_content.handled = true;
+            return;
+        }
+
+        let dirs = cell_content.material.directions();
+
+        for dir in ExtDirIterator::new(&dirs) {
+            if let Some((neighbor_pos, neighbor)) = self.universe.get_neighbor(pos, dir) {
+                let mut neighbor_content = neighbor.lock().unwrap();
+                match cell_content
+                    .material
+                    .collide(&neighbor_content.material, dir)
+                {
+                    SwapAndMove => {
+                        // self.universe.swap_cells(&mut current_cell, &mut neighbor);
+                        let copy = cell_content.clone();
+
+                        cell_content.clone_from(&neighbor_content);
+                        neighbor_content.clone_from(&copy);
+                        // cell_content.handled = false;
+
+                        // self.handle_collision(pos, current_cell);
+                        drop(neighbor_content);
+                        drop(cell_content);
+                        return self.step(&neighbor_pos, &neighbor, steps_remaining - 1);
+                    }
+                    SwapAndStop => {
+                        // self.universe.swap_cells(&mut current_cell, &mut neighbor);
+                        cell_content.velocity = 0;
+                        cell_content.handled = true;
+                        let copy = cell_content.clone();
+
+                        cell_content.clone_from(&neighbor_content);
+                        neighbor_content.clone_from(&copy);
+                        // cell_content.handled = false;
+
+                        // self.handle_collision(current_cell);
+                        // current_cell = neighbor;
+                        return;
+                    }
+                    Convert(replace_material) => {
+                        neighbor_content.clone_from(&CellContent::new(replace_material, true, 0));
+                        return;
+                    }
+                    Evade => {}
+                    Consume(mat) => {
+                        neighbor_content.clone_from(&CellContent::new(mat, false, 0));
+                        let copy = cell_content.clone();
+
+                        cell_content.clone_from(&neighbor_content);
+                        neighbor_content.clone_from(&copy);
+
+                        // self.handle_collision(current_cell);
+                        // current_cell = neighbor;
+                        return;
+                    }
+                    GetConverted(mat) => {
+                        cell_content.clone_from(&CellContent::new(mat, true, 0));
+                        return;
+                    }
+                    Eradicate(new_current_mat, new_neighbor_mat) => {
+                        cell_content.clone_from(&CellContent::new(new_current_mat, true, 0));
+                        neighbor_content.clone_from(&CellContent::new(new_neighbor_mat, true, 0));
+                        return;
                     }
                 }
             }
-            // we checked all neighbors and couldnt move, so we save cell with velocity = 0
-            current_cell.content.velocity = 0;
-            current_cell.content.handled = true;
-            self.universe.save_cell(&current_cell);
-            return;
         }
-        // we used all steps without stopping, i.e. free fall
-        current_cell.content.handled = true;
-        self.universe.save_cell(&current_cell);
+        // we checked all neighbors and couldnt move, so we save cell with velocity = 0
+        // let content = cell.lock().unwrap();
+        cell_content.velocity = 0;
+        cell_content.handled = true;
+        return;
     }
 }
 
@@ -148,23 +192,23 @@ fn rand_select3<T>(a: T, b: T, c: T) -> T {
 
 #[allow(clippy::match_same_arms)]
 impl Material {
-    fn directions(&self) -> &[ExtDirection] {
+    fn directions(&self) -> Vec<ExtDirection> {
         match self {
-            Sand => &[One(Down), Random(RightDown, LeftDown)],
-            SandGenerator => &[One(Down)],
-            Water => &[One(Down), Random(RightDown, LeftDown), Random(Right, Left)],
-            WaterGenerator => &[One(Down)],
-            Air => &[],
-            Fire => &[
+            Sand => vec![One(Down), Random(RightDown, LeftDown)],
+            SandGenerator => vec![One(Down)],
+            Water => vec![One(Down), Random(RightDown, LeftDown), Random(Right, Left)],
+            WaterGenerator => vec![One(Down)],
+            Air => vec![],
+            Fire => vec![
                 One(Down),
                 Random(RightDown, LeftDown),
                 Random(Right, Left),
                 One(Up),
                 Random(RightUp, LeftUp),
             ],
-            Smoke => &[One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
-            Vapor => &[One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
-            Wood => &[],
+            Smoke => vec![One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
+            Vapor => vec![One(Up), Random(RightUp, LeftUp), Random(Right, Left)],
+            Wood => vec![],
         }
     }
 

@@ -2,9 +2,11 @@ mod gui;
 
 use crate::gui::Framework;
 use log::{debug, error};
-use pixels::{Pixels, SurfaceTexture};
+use pixels::wgpu::PresentMode;
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellContent, Material, Position, Universe};
+use simulation::universe::{CellContent, Material, Position, Universe};
+use std::sync::Mutex;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -69,8 +71,12 @@ fn main() {
                     Ok((x, y)) => {
                         let content = CellContent::new(framework.gui.material.clone(), false, 0);
                         let position = Position::new(x, y);
-                        let cell = Cell { content, position };
-                        sim.universe.save_cell(&cell);
+                        sim.universe
+                            .get_cell(&position)
+                            .unwrap()
+                            .lock()
+                            .unwrap()
+                            .clone_from(&content);
                     }
                     Err((x, y)) => {
                         debug!("mouse position outside of window!: {:?}:{:?}", x, y)
@@ -133,7 +139,7 @@ fn main() {
 
 fn draw(universe: &Universe, screen: &mut [u8]) {
     for (cell, pixel) in universe.area.iter().zip(screen.chunks_exact_mut(4)) {
-        pixel.copy_from_slice(cell_to_color(cell));
+        pixel.copy_from_slice(cell_to_color(&cell.lock().unwrap()));
     }
 }
 
@@ -151,7 +157,7 @@ fn cell_to_color(cell: &CellContent) -> &[u8; 4] {
     }
 }
 
-const AIR_COLOR: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+const AIR_COLOR: [u8; 4] = [0xff, 0xff, 0xff, 0x00];
 const WATER_COLOR: [u8; 4] = [0, 0, 0xff, 0xff];
 const SAND_COLOR: [u8; 4] = [0xff, 0xff, 0, 0xff];
 const WATER_GENERATOR_COLOR: [u8; 4] = [0, 0xff, 0xff, 0xff];
