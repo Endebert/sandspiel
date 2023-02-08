@@ -1,9 +1,11 @@
 use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown, RightUp, Up};
 use std::sync::{Arc, Mutex};
 
+pub type CellContentWrapper = Mutex<CellContent>;
+
 #[derive(Debug)]
 pub struct Universe {
-    pub area: Vec<Arc<Mutex<CellContent>>>,
+    pub area: Vec<CellContentWrapper>,
     pub width: usize,
     pub height: usize,
 }
@@ -17,12 +19,12 @@ impl Universe {
         }
     }
 
-    fn gen_area(width: usize, height: usize) -> Vec<Arc<Mutex<CellContent>>> {
+    fn gen_area(width: usize, height: usize) -> Vec<CellContentWrapper> {
         let mut vec = Vec::with_capacity(width * height);
         let cell_content = CellContent::new(Material::Air, false, 0);
 
         for _ in 0..width * height {
-            vec.push(Arc::new(Mutex::new(cell_content.clone())));
+            vec.push(Mutex::new(cell_content.clone()));
         }
         vec
         // vec![CellContent::new(Material::Air, false, 0); width * height]
@@ -38,7 +40,7 @@ impl Universe {
         }
     }
 
-    pub fn get_cell(&self, pos: &Position) -> Option<&Arc<Mutex<CellContent>>> {
+    pub fn get_cell(&self, pos: &Position) -> Option<&CellContentWrapper> {
         self.area.get(self.pos_to_i(pos))
     }
 
@@ -62,9 +64,9 @@ impl Universe {
         &self,
         pos: &Position,
         dir: &Direction,
-    ) -> Option<(Position, Arc<Mutex<CellContent>>)> {
+    ) -> Option<(Position, &CellContentWrapper)> {
         let neighbor_pos = self.get_neighbor_pos(pos, dir)?;
-        let neighbor = self.get_cell(&neighbor_pos)?.clone();
+        let neighbor = self.get_cell(&neighbor_pos)?;
 
         Some((neighbor_pos, neighbor))
     }

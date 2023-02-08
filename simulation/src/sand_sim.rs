@@ -6,20 +6,22 @@ use crate::universe::Direction::{Down, Left, LeftDown, LeftUp, Right, RightDown,
 use crate::universe::Material::{
     Air, Fire, Sand, SandGenerator, Smoke, Vapor, Water, WaterGenerator, Wood,
 };
-use crate::universe::{CellContent, Direction, Material, Position, Universe};
+use crate::universe::{CellContent, CellContentWrapper, Direction, Material, Position, Universe};
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use rand::{random, thread_rng, Rng};
-use std::ops::Deref;
+use std::ops::{Deref, Div};
 use std::slice::Iter;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, TryLockResult};
 use std::thread;
-use std::time::SystemTime;
+use std::thread::available_parallelism;
+use std::time::{Instant, SystemTime};
 
 pub struct Simulation {
     pub universe: Arc<Universe>,
     tick_interval: u8,
     tick: u8,
+    tick_time_avg: u128,
 }
 
 impl Simulation {
@@ -27,8 +29,9 @@ impl Simulation {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             universe: Arc::new(Universe::new(width, height)),
-            tick_interval: 2,
+            tick_interval: 1,
             tick: 0,
+            tick_time_avg: 0,
         }
     }
 
@@ -38,6 +41,8 @@ impl Simulation {
         if self.tick != 0 {
             return;
         }
+
+        let start = Instant::now();
 
         self.universe.set_all_unhandled();
 
@@ -51,33 +56,46 @@ impl Simulation {
         // }
 
         // lets do multithreading!
-        // let universe1 = Arc::clone(self.universe);
-        let universe1 = self.universe.clone();
-        let universe2 = self.universe.clone();
-        // let universe2 = Arc::clone(self.universe);
+        let cpu_cores = available_parallelism().unwrap().get();
+        // let cpu_cores = 1;
+        let mut handles = Vec::with_capacity(cpu_cores);
+
         let len = self.universe.area.len();
-        let midpoint = self.universe.area.len() / 2;
+        let slice_size = len / cpu_cores;
 
-        let handle1 = thread::spawn(move || {
-            for index in (midpoint..len).rev() {
-                eprintln!("thread 1 start");
-                let pos = universe1.i_to_pos(index);
-                handle_collision(&universe1, &pos);
-                eprintln!("thread 1 end");
-            }
-        });
+        for i in 0..cpu_cores {
+            let start = slice_size * i;
 
-        let handle2 = thread::spawn(move || {
-            for index in (0..midpoint).rev() {
-                eprintln!("thread 2 start");
-                let pos = universe2.i_to_pos(index);
-                handle_collision(&universe2, &pos);
-                eprintln!("thread 2 end");
-            }
-        });
+            let end = if i == cpu_cores - 1 {
+                len - 1
+            } else {
+                slice_size * (i + 1)
+            };
 
-        handle1.join().unwrap();
-        handle2.join().unwrap();
+            let universe = self.universe.clone();
+
+            let handle = thread::spawn(move || {
+                for index in (start..end).rev() {
+                    // println!("thread {i} start");
+                    let pos = universe.i_to_pos(index);
+                    handle_collision(&universe, &pos);
+                    // println!("thread {i} end");
+                }
+            });
+
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        let tick_time = start.elapsed().as_nanos();
+        let mut avg = self.tick_time_avg;
+        avg -= avg / 120;
+        avg += tick_time / 120;
+        // println!("tick time: {}; avg: {}", tick_time, avg);
+        self.tick_time_avg = avg;
     }
 }
 
@@ -90,13 +108,15 @@ fn handle_collision(universe: &Universe, pos: &Position) {
     }
     cell_content.velocity += 1;
     steps = cell_content.velocity.abs();
-    drop(cell_content);
-    step(universe, pos, cell, steps);
+    step(universe, pos, cell_content, steps);
 }
 
-fn step(universe: &Universe, pos: &Position, cell: &Arc<Mutex<CellContent>>, steps_remaining: i16) {
-    let mut cell_content = cell.lock().unwrap();
-
+fn step(
+    universe: &Universe,
+    pos: &Position,
+    mut cell_content: MutexGuard<CellContent>,
+    steps_remaining: i16,
+) {
     if steps_remaining == 0 {
         // we used all steps without stopping, i.e. free fall
         cell_content.handled = true;
@@ -107,7 +127,23 @@ fn step(universe: &Universe, pos: &Position, cell: &Arc<Mutex<CellContent>>, ste
 
     for dir in ExtDirIterator::new(&dirs) {
         if let Some((neighbor_pos, neighbor)) = universe.get_neighbor(pos, dir) {
-            let mut neighbor_content = neighbor.lock().unwrap();
+            let mut neighbor_content;
+
+            let result = neighbor.try_lock();
+
+            match result {
+                Ok(lock) => {
+                    neighbor_content = lock;
+                }
+                Err(err) => {
+                    println!("Failed to acquire lock for neighbor at {neighbor_pos:?}: {err}");
+
+                    // in order to prevent a deadlock, in case of a failed lock acquisition, we release
+                    drop(cell_content);
+                    return handle_collision(universe, pos);
+                }
+            }
+
             match cell_content
                 .material
                 .collide(&neighbor_content.material, dir)
@@ -121,9 +157,15 @@ fn step(universe: &Universe, pos: &Position, cell: &Arc<Mutex<CellContent>>, ste
                     // cell_content.handled = false;
 
                     // self.handle_collision(pos, current_cell);
-                    drop(neighbor_content);
+                    // drop(copy);
+                    // drop(neighbor_content);
                     drop(cell_content);
-                    return step(universe, &neighbor_pos, &neighbor, steps_remaining - 1);
+                    return step(
+                        universe,
+                        &neighbor_pos,
+                        neighbor_content,
+                        steps_remaining - 1,
+                    );
                 }
                 SwapAndStop => {
                     // self.universe.swap_cells(&mut current_cell, &mut neighbor);

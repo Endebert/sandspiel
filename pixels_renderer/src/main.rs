@@ -1,3 +1,5 @@
+extern crate core;
+
 mod gui;
 
 use crate::gui::Framework;
@@ -7,6 +9,8 @@ use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use simulation::sand_sim::Simulation;
 use simulation::universe::{CellContent, Material, Position, Universe};
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -53,6 +57,12 @@ fn main() {
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
     let mut mouse_pos = (-1f32, -1f32);
+
+    // thread::spawn(|| {
+    //     thread::sleep(Duration::from_secs(5));
+    //     println!("SLEEPER THREAD EXIT");
+    // });
+
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
         if input.update(&event) {
