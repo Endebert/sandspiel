@@ -13,10 +13,11 @@ use rand::{random, thread_rng, Rng};
 use std::ops::Deref;
 use std::slice::Iter;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::SystemTime;
 
 pub struct Simulation {
-    pub universe: Universe,
+    pub universe: Arc<Universe>,
     tick_interval: u8,
     tick: u8,
 }
@@ -25,7 +26,7 @@ impl Simulation {
     #[must_use]
     pub fn new(width: usize, height: usize) -> Self {
         Self {
-            universe: Universe::new(width, height),
+            universe: Arc::new(Universe::new(width, height)),
             tick_interval: 2,
             tick: 0,
         }
@@ -40,108 +41,137 @@ impl Simulation {
 
         self.universe.set_all_unhandled();
 
-        for index in (0..self.universe.area.len()).rev() {
-            let pos = self.universe.i_to_pos(index);
-            // let cell = self.universe.get_cell(&pos).unwrap();
-            // {
-            // cell.lock().unwrap().velocity += 1;
-            // }
-            self.handle_collision(&pos);
-        }
-    }
+        // for index in (0..self.universe.area.len()).rev() {
+        //     let pos = self.universe.i_to_pos(index);
+        //     // let cell = self.universe.get_cell(&pos).unwrap();
+        //     // {
+        //     // cell.lock().unwrap().velocity += 1;
+        //     // }
+        //     self.handle_collision(&pos);
+        // }
 
-    fn handle_collision(&self, pos: &Position) {
-        let cell = self.universe.get_cell(pos).unwrap();
-        let steps;
-        let mut cell_content = cell.lock().unwrap();
-        if cell_content.handled {
-            return;
-        }
-        cell_content.velocity += 1;
-        steps = cell_content.velocity.abs();
-        drop(cell_content);
-        self.step(pos, cell, steps);
-    }
+        // lets do multithreading!
+        // let universe1 = Arc::clone(self.universe);
+        let universe1 = self.universe.clone();
+        let universe2 = self.universe.clone();
+        // let universe2 = Arc::clone(self.universe);
+        let len = self.universe.area.len();
+        let midpoint = self.universe.area.len() / 2;
 
-    fn step(&self, pos: &Position, cell: &Arc<Mutex<CellContent>>, steps_remaining: i16) {
-        let mut cell_content = cell.lock().unwrap();
-
-        if steps_remaining == 0 {
-            // we used all steps without stopping, i.e. free fall
-            cell_content.handled = true;
-            return;
-        }
-
-        let dirs = cell_content.material.directions();
-
-        for dir in ExtDirIterator::new(&dirs) {
-            if let Some((neighbor_pos, neighbor)) = self.universe.get_neighbor(pos, dir) {
-                let mut neighbor_content = neighbor.lock().unwrap();
-                match cell_content
-                    .material
-                    .collide(&neighbor_content.material, dir)
-                {
-                    SwapAndMove => {
-                        // self.universe.swap_cells(&mut current_cell, &mut neighbor);
-                        let copy = cell_content.clone();
-
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
-                        // cell_content.handled = false;
-
-                        // self.handle_collision(pos, current_cell);
-                        drop(neighbor_content);
-                        drop(cell_content);
-                        return self.step(&neighbor_pos, &neighbor, steps_remaining - 1);
-                    }
-                    SwapAndStop => {
-                        // self.universe.swap_cells(&mut current_cell, &mut neighbor);
-                        cell_content.velocity = 0;
-                        cell_content.handled = true;
-                        let copy = cell_content.clone();
-
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
-                        // cell_content.handled = false;
-
-                        // self.handle_collision(current_cell);
-                        // current_cell = neighbor;
-                        return;
-                    }
-                    Convert(replace_material) => {
-                        neighbor_content.clone_from(&CellContent::new(replace_material, true, 0));
-                        return;
-                    }
-                    Evade => {}
-                    Consume(mat) => {
-                        neighbor_content.clone_from(&CellContent::new(mat, false, 0));
-                        let copy = cell_content.clone();
-
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
-
-                        // self.handle_collision(current_cell);
-                        // current_cell = neighbor;
-                        return;
-                    }
-                    GetConverted(mat) => {
-                        cell_content.clone_from(&CellContent::new(mat, true, 0));
-                        return;
-                    }
-                    Eradicate(new_current_mat, new_neighbor_mat) => {
-                        cell_content.clone_from(&CellContent::new(new_current_mat, true, 0));
-                        neighbor_content.clone_from(&CellContent::new(new_neighbor_mat, true, 0));
-                        return;
-                    }
-                }
+        let handle1 = thread::spawn(move || {
+            for index in (midpoint..len).rev() {
+                eprintln!("thread 1 start");
+                let pos = universe1.i_to_pos(index);
+                handle_collision(&universe1, &pos);
+                eprintln!("thread 1 end");
             }
-        }
-        // we checked all neighbors and couldnt move, so we save cell with velocity = 0
-        // let content = cell.lock().unwrap();
-        cell_content.velocity = 0;
+        });
+
+        let handle2 = thread::spawn(move || {
+            for index in (0..midpoint).rev() {
+                eprintln!("thread 2 start");
+                let pos = universe2.i_to_pos(index);
+                handle_collision(&universe2, &pos);
+                eprintln!("thread 2 end");
+            }
+        });
+
+        handle1.join().unwrap();
+        handle2.join().unwrap();
+    }
+}
+
+fn handle_collision(universe: &Universe, pos: &Position) {
+    let cell = universe.get_cell(pos).unwrap();
+    let steps;
+    let mut cell_content = cell.lock().unwrap();
+    if cell_content.handled {
+        return;
+    }
+    cell_content.velocity += 1;
+    steps = cell_content.velocity.abs();
+    drop(cell_content);
+    step(universe, pos, cell, steps);
+}
+
+fn step(universe: &Universe, pos: &Position, cell: &Arc<Mutex<CellContent>>, steps_remaining: i16) {
+    let mut cell_content = cell.lock().unwrap();
+
+    if steps_remaining == 0 {
+        // we used all steps without stopping, i.e. free fall
         cell_content.handled = true;
         return;
     }
+
+    let dirs = cell_content.material.directions();
+
+    for dir in ExtDirIterator::new(&dirs) {
+        if let Some((neighbor_pos, neighbor)) = universe.get_neighbor(pos, dir) {
+            let mut neighbor_content = neighbor.lock().unwrap();
+            match cell_content
+                .material
+                .collide(&neighbor_content.material, dir)
+            {
+                SwapAndMove => {
+                    // self.universe.swap_cells(&mut current_cell, &mut neighbor);
+                    let copy = cell_content.clone();
+
+                    cell_content.clone_from(&neighbor_content);
+                    neighbor_content.clone_from(&copy);
+                    // cell_content.handled = false;
+
+                    // self.handle_collision(pos, current_cell);
+                    drop(neighbor_content);
+                    drop(cell_content);
+                    return step(universe, &neighbor_pos, &neighbor, steps_remaining - 1);
+                }
+                SwapAndStop => {
+                    // self.universe.swap_cells(&mut current_cell, &mut neighbor);
+                    cell_content.velocity = 0;
+                    cell_content.handled = true;
+                    let copy = cell_content.clone();
+
+                    cell_content.clone_from(&neighbor_content);
+                    neighbor_content.clone_from(&copy);
+                    // cell_content.handled = false;
+
+                    // self.handle_collision(current_cell);
+                    // current_cell = neighbor;
+                    return;
+                }
+                Convert(replace_material) => {
+                    neighbor_content.clone_from(&CellContent::new(replace_material, true, 0));
+                    return;
+                }
+                Evade => {}
+                Consume(mat) => {
+                    neighbor_content.clone_from(&CellContent::new(mat, false, 0));
+                    let copy = cell_content.clone();
+
+                    cell_content.clone_from(&neighbor_content);
+                    neighbor_content.clone_from(&copy);
+
+                    // self.handle_collision(current_cell);
+                    // current_cell = neighbor;
+                    return;
+                }
+                GetConverted(mat) => {
+                    cell_content.clone_from(&CellContent::new(mat, true, 0));
+                    return;
+                }
+                Eradicate(new_current_mat, new_neighbor_mat) => {
+                    cell_content.clone_from(&CellContent::new(new_current_mat, true, 0));
+                    neighbor_content.clone_from(&CellContent::new(new_neighbor_mat, true, 0));
+                    return;
+                }
+            }
+        }
+    }
+    // we checked all neighbors and couldnt move, so we save cell with velocity = 0
+    // let content = cell.lock().unwrap();
+    cell_content.velocity = 0;
+    cell_content.handled = true;
+    return;
 }
 
 /// [A, B] -> [A, B] // Evade, e.g. [Sand, Wood]
