@@ -127,22 +127,11 @@ fn step(
 
     for dir in ExtDirIterator::new(&dirs) {
         if let Some((neighbor_pos, neighbor)) = universe.get_neighbor(pos, dir) {
-            let mut neighbor_content;
-
-            let result = neighbor.try_lock();
-
-            match result {
-                Ok(lock) => {
-                    neighbor_content = lock;
-                }
-                Err(err) => {
-                    println!("Failed to acquire lock for neighbor at {neighbor_pos:?}: {err}");
-
-                    // in order to prevent a deadlock, in case of a failed lock acquisition, we release
-                    drop(cell_content);
-                    return handle_collision(universe, pos);
-                }
-            }
+            let Ok(mut neighbor_content) = neighbor.try_lock() else {
+                println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
+                // we simply skip this neighbor and check the next one
+                continue;
+            };
 
             match cell_content
                 .material
