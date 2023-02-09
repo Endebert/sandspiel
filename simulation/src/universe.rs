@@ -30,6 +30,7 @@ impl Universe {
         // vec![CellContent::new(Material::Air, false, 0); width * height]
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn fill(&self, area: &[Material]) {
         for (i, kind) in area.iter().enumerate() {
             // self.area[i] = CellContent::new(kind.clone(), false, 0);
@@ -44,22 +45,6 @@ impl Universe {
         self.area.get(self.pos_to_i(pos))
     }
 
-    // pub fn save_cell(&self, cell: &Cell) {
-    //     let index = self.pos_to_i(&cell.position);
-    //     self.area[index] = cell.content.clone();
-    // }
-    //
-    // pub(crate) fn swap_cells(&self, cell1: &mut Cell, cell2: &mut Cell) {
-    //     let index1 = self.pos_to_i(&cell1.position);
-    //     let index2 = self.pos_to_i(&cell2.position);
-    //
-    //     self.area.swap(index1, index2);
-    //
-    //     let temp_cell = cell1.content.clone();
-    //     cell1.content = cell2.content.clone();
-    //     cell2.content = temp_cell;
-    // }
-
     pub(crate) fn get_neighbor(
         &self,
         pos: &Position,
@@ -71,6 +56,7 @@ impl Universe {
         Some((neighbor_pos, neighbor))
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn set_all_unhandled(&self) {
         for cell in &self.area {
             cell.lock().unwrap().handled = false;
