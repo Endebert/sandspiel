@@ -4,13 +4,11 @@ mod gui;
 
 use crate::gui::Framework;
 use log::{debug, error};
-use pixels::wgpu::PresentMode;
-use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
-use simulation::sand_sim::Simulation;
-use simulation::universe::{CellContent, Material, Position, Universe};
-use std::sync::Mutex;
-use std::thread;
-use std::time::Duration;
+use pixels::{Pixels, SurfaceTexture};
+use simulation::entities::cell_content::CellContent;
+use simulation::entities::material::Material;
+use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::universe::{Position, Universe};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -32,7 +30,7 @@ fn main() {
     fill_area[width_usize / 3] = Material::SandGenerator;
     fill_area[width_usize / 2] = Material::WaterGenerator;
 
-    sim.universe.fill(&fill_area);
+    sim.fill(&fill_area);
 
     let window = {
         let size = LogicalSize::new(WIDTH, HEIGHT);
@@ -51,7 +49,10 @@ fn main() {
         Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap()
     };
 
-    let window_size = window.inner_size();
+    // let window_size = window.inner_size();
+
+    // truncation should be fine in this instance
+    #[allow(clippy::cast_possible_truncation)]
     let scale_factor = window.scale_factor() as f32;
 
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
@@ -147,7 +148,7 @@ fn main() {
     });
 }
 
-fn draw(universe: &Universe, screen: &mut [u8]) {
+fn draw(universe: &Universe<CellContentWrapper>, screen: &mut [u8]) {
     for (cell, pixel) in universe.area.iter().zip(screen.chunks_exact_mut(4)) {
         pixel.copy_from_slice(cell_to_color(&cell.lock().unwrap()));
     }

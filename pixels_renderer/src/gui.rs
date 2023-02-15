@@ -1,7 +1,7 @@
-use egui::{ClippedPrimitive, Context, Grid, TexturesDelta};
+use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
 use pixels::{wgpu, PixelsContext};
-use simulation::universe::Material;
+use simulation::entities::material::Material;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
