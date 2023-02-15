@@ -1,7 +1,7 @@
 extern crate core;
 
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellContent, Material, Universe};
+use simulation::universe::{CellContent, CellContentWrapper, Material, Universe};
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::thread::sleep;
@@ -61,7 +61,7 @@ fn main() {
     }
 }
 
-pub fn get_as_string(area: &[CellContent], width: usize) -> String {
+pub fn get_as_string(area: &Vec<CellContentWrapper>, width: usize) -> String {
     let lines: Vec<String> = area
         .chunks(width)
         .map(|chunk| chunk.iter().map(content_to_char).collect::<String>())
@@ -80,8 +80,8 @@ pub fn draw(universe: &Universe) {
     println!("{}", get_as_string(&universe.area, universe.width));
 }
 
-fn content_to_char(content: &CellContent) -> char {
-    match content.material {
+fn content_to_char(content: &CellContentWrapper) -> char {
+    match content.lock().unwrap().material {
         Material::Sand => '■',
         Material::SandGenerator => 'S',
         Material::Air => ' ',
