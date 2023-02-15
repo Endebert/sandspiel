@@ -1,7 +1,7 @@
 mod utils;
 
 use simulation::sand_sim::Simulation;
-use simulation::universe::{Cell, CellContent, Material, Position, Universe};
+use simulation::universe::{CellContent, Material, Position, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 
@@ -49,7 +49,13 @@ impl WasmPackRenderer {
         };
         let content = CellContent::new(material, true, 0);
 
-        self.sim.universe.save_cell(&Cell { content, position });
+        self.sim
+            .universe
+            .get_cell(&position)
+            .unwrap()
+            .lock()
+            .unwrap()
+            .clone_from(&content);
     }
 }
 
@@ -67,7 +73,7 @@ fn to_u8(universe: &Universe) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for cell in &universe.area {
-        let color = match cell.material {
+        let color = match cell.lock().unwrap().material {
             Material::Sand => &SAND_COLOR,
             Material::SandGenerator => &SAND_GENERATOR_COLOR,
             Material::Water => &WATER_COLOR,
