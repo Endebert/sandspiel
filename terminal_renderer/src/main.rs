@@ -1,7 +1,8 @@
 extern crate core;
 
-use simulation::sand_sim::Simulation;
-use simulation::universe::{CellContent, CellContentWrapper, Material, Universe};
+use simulation::entities::material::Material;
+use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::universe::Universe;
 use std::fmt::{Display, Formatter};
 use std::io;
 use std::thread::sleep;
@@ -50,7 +51,7 @@ fn main() {
 
     let fill_area = fill_area_2d.concat();
 
-    sim.universe.fill(&*fill_area);
+    sim.fill(&fill_area);
     let mut buf = String::new();
 
     loop {
@@ -61,7 +62,7 @@ fn main() {
     }
 }
 
-pub fn get_as_string(area: &Vec<CellContentWrapper>, width: usize) -> String {
+pub fn get_as_string(area: &[CellContentWrapper], width: usize) -> String {
     let lines: Vec<String> = area
         .chunks(width)
         .map(|chunk| chunk.iter().map(content_to_char).collect::<String>())
@@ -69,7 +70,7 @@ pub fn get_as_string(area: &Vec<CellContentWrapper>, width: usize) -> String {
     lines.join("\n")
 }
 
-pub fn draw(universe: &Universe) {
+pub fn draw(universe: &Universe<CellContentWrapper>) {
     // clear screen
     // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     // print!("{}[2J", 27 as char);
