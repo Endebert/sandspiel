@@ -17,9 +17,9 @@ Press Enter to forward the simulation. You can change the initial state in [main
 cargo run --package pixels_renderer
 ```
 ### In a Browser (using [wasm-pack](https://rustwasm.github.io/wasm-pack/))
-## Demo
+#### Demo
 Try it here: [sandspiel.ende.pro](https://sandspiel.ende.pro) (might be outdated)
-## Install & Run
+#### Install & Run
 1. install wasm-pack (see website)
 ```bash
 cd wasm-pack-renderer
