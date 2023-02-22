@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+  <head>
+    <meta charset="utf-8">
+    <title>Sandspiel Prototype</title>
+  </head>
+  <body style="height: 100vh; margin: 0; display: flex">
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <div>
+      This is a small prototype simulation written in Rust.
+      <br>
+      Code: <a href="https://github.com/Endebert/sandspiel">https://github.com/Endebert/sandspiel</a>
+      <form id="myForm">
+        <div>
+          <p>
+            <label>
+              <input id="paused-checkbox" type="checkbox">Paused
+            </label>
+          </p>
+          <p><label>
+            Tick Interval (0-4)
+            <br>
+            <input type="range" id="tick_interval" name="tick_interval" min="1" max="4">
+          </label>
+          </p>
+          Material:
+          <br>
+          <div style="display: flex; flex-direction: column">
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('sand')" value="sand" checked>Sand
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('water')" value="water">Water
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('fire')" value="fire">fire
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('wood')" value="wood">wood
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('smoke')" value="smoke">smoke
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('vapor')" value="vapor">vapor
+            </label>
+          </div>
+        </div>
+      </form>
+    </div>
+    <canvas id="sandspiel-canvas" width="200" height="200" style="image-rendering: pixelated; border: 2px solid grey"></canvas>
+    <script src="./bootstrap.js"></script>
+  </body>
+</html>
