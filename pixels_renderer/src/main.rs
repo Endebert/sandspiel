@@ -32,6 +32,8 @@ fn main() {
 
     sim.fill(&fill_area);
 
+    let mut current_tick = 0;
+
     let window = {
         let size = LogicalSize::new(WIDTH, HEIGHT);
         let scaled_size = LogicalSize::new(WIDTH * 4, HEIGHT * 4);
@@ -58,11 +60,6 @@ fn main() {
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
     let mut mouse_pos = (-1f32, -1f32);
-
-    // thread::spawn(|| {
-    //     thread::sleep(Duration::from_secs(5));
-    //     println!("SLEEPER THREAD EXIT");
-    // });
 
     event_loop.run(move |event, _, control_flow| {
         // Handle input events
@@ -106,8 +103,13 @@ fn main() {
                 framework.resize(size.width, size.height);
             }
 
-            // Update internal state and request a redraw
-            sim.tick();
+            current_tick += 1;
+            current_tick %= framework.gui.tick_interval;
+
+            if current_tick == 0 {
+                // Update internal state and request a redraw
+                sim.tick();
+            }
             window.request_redraw();
         }
 

@@ -22,6 +22,7 @@ pub(crate) struct Framework {
 /// Example application state. A real application will need a lot more state than this.
 pub struct Gui {
     pub material: Material,
+    pub tick_interval: u8,
 }
 
 impl Framework {
@@ -47,6 +48,7 @@ impl Framework {
         let textures = TexturesDelta::default();
         let gui = Gui {
             material: Material::Sand,
+            tick_interval: 1,
         };
 
         Self {
@@ -144,6 +146,8 @@ impl Gui {
                 ui.radio_value(current, Material::SandGenerator, "Sand Generator");
                 ui.radio_value(current, Material::WaterGenerator, "Water Generator");
             });
+            ui.label("Tick Interval");
+            ui.add(egui::Slider::new(&mut self.tick_interval, 1..=6))
         });
     }
 }
