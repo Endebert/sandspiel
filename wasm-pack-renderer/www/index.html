@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+  <head>
+    <meta charset="utf-8">
+    <title>Hello wasm-pack!</title>
+  </head>
+  <body style="height: 100vh; margin: 0">
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
+    <div style="display:flex; width:100%; height:100%; justify-content:center">
+      <canvas id="sandspiel-canvas" width="200" height="200" style="image-rendering: pixelated"></canvas>
+      <form id="myForm">
+        Materials
+        <div>
+          <div>
+            <label>
+              <input id="paused-checkbox" type="checkbox">Paused
+            </label>
+          </div>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('sand')" value="sand" checked>Sand
+          </label>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('water')" value="water">Water
+          </label>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('fire')" value="fire">fire
+          </label>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('wood')" value="wood">wood
+          </label>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('smoke')" value="smoke">smoke
+          </label>
+          <label>
+            <input type="radio" name="material" onchange="changeMaterial('vapor')" value="vapor">vapor
+          </label>
+        </div>
+      </form>
+    </div>
+    <script src="./bootstrap.js"></script>
+  </body>
+</html>
