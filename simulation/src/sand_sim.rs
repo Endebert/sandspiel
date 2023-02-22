@@ -15,60 +15,65 @@ pub type CellContentWrapper = Mutex<CellContent>;
 /// Simulates the behaviour of [Material] in a [Universe] per tick
 pub struct Simulation {
     pub universe: Arc<Universe<CellContentWrapper>>,
-
-    // tick & tick_interval are used to reduce the "framerate" of the simulation.
-    // halved if tick_interval > 1, in thirds if >2, and so on.
-    // TODO: move this into renderer implementation
-    tick_interval: u8,
-    tick: u8,
-    // tick_time_avg: u128,
+    num_threads: usize,
 }
 
 impl Simulation {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             universe: Arc::new(Universe::new(width, height)),
-            tick_interval: 1,
-            tick: 0,
-            // tick_time_avg: 0,
+            num_threads: Self::get_num_threads(),
         }
     }
 
-    /// Advances the simulation by one step. Might skip calculating the next state if tick_interval > 1.
-    ///
-    /// # Panics
-    /// Panics if one of its threads cannot be joined.
-    pub fn tick(&mut self) {
-        self.tick += 1;
-        self.tick %= self.tick_interval;
-
-        if self.tick != 0 {
-            return;
-        }
-
-        // let start_time = Instant::now();
-
-        self.set_all_unhandled();
-
-        // lets do multithreading!
-        let num_threads = match available_parallelism() {
-            Ok(n) => n.get(),
+    fn get_num_threads() -> usize {
+        match available_parallelism() {
+            Ok(n) => {
+                let num_threads = n.get();
+                println!("Available parallelism: {}", num_threads);
+                num_threads
+            }
             Err(err) => {
                 println!("Failed to get available parallelism: {}", err);
                 1
             }
-        };
+        }
+    }
 
+    /// Advances the simulation by one step.
+    ///
+    /// # Panics
+    /// Panics if one of its threads cannot be joined.
+    pub fn tick(&mut self) {
+        self.set_all_unhandled();
+
+        // for web, num_thread = 1 and we have to run the simulation unthreaded,
+        // otherwise we get a runtime error
+        if self.num_threads == 1 {
+            self.simulate();
+        } else {
+            self.simulate_threaded();
+        }
+    }
+
+    fn simulate(&mut self) {
+        for index in (0..self.universe.area.len()).rev() {
+            let pos = self.universe.i_to_pos(index);
+            handle_collision(&self.universe, &pos);
+        }
+    }
+
+    fn simulate_threaded(&mut self) {
         let len = self.universe.area.len();
-        let slice_size = len / num_threads;
+        let slice_size = len / self.num_threads;
 
-        let mut handles = Vec::with_capacity(num_threads);
-        for i in 0..num_threads {
+        let mut handles = Vec::with_capacity(self.num_threads);
+        for i in 0..self.num_threads {
             let start = slice_size * i;
 
             // we need to have the special case for the last iteration, as the final part for
             // universe might be bigger than than [slice_size]
-            let end = if i == num_threads - 1 {
+            let end = if i == self.num_threads - 1 {
                 len - 1
             } else {
                 slice_size * (i + 1)
@@ -89,19 +94,6 @@ impl Simulation {
         for handle in handles {
             handle.join().unwrap();
         }
-
-        // unthreaded collision handling. Use this for wasm renderer, and comment out the threaded part
-        // for index in (0..len).rev() {
-        //     let pos = self.universe.i_to_pos(index);
-        //     handle_collision(&self.universe, &pos);
-        // }
-
-        // tick_time calculation, used to measure execution time for each tick
-        // let tick_time = start_time.elapsed().as_nanos();
-        // let mut avg = self.tick_time_avg;
-        // avg -= avg / 120;
-        // avg += tick_time / 120;
-        // self.tick_time_avg = avg;
     }
 
     /// Fills (part of) the universe of the simulation with the given area-
