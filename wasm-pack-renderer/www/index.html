@@ -9,31 +9,40 @@
     <div style="display:flex; width:100%; height:100%; justify-content:center">
       <canvas id="sandspiel-canvas" width="200" height="200" style="image-rendering: pixelated"></canvas>
       <form id="myForm">
-        Materials
         <div>
-          <div>
+          <p>
             <label>
               <input id="paused-checkbox" type="checkbox">Paused
             </label>
+          </p>
+          <p><label>
+            Tick Interval (0-4)
+            <br>
+            <input type="range" id="tick_interval" name="tick_interval" min="1" max="4">
+          </label>
+          </p>
+          Material:
+          <br>
+          <div style="display: flex; flex-direction: column">
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('sand')" value="sand" checked>Sand
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('water')" value="water">Water
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('fire')" value="fire">fire
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('wood')" value="wood">wood
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('smoke')" value="smoke">smoke
+            </label>
+            <label>
+              <input type="radio" name="material" onchange="changeMaterial('vapor')" value="vapor">vapor
+            </label>
           </div>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('sand')" value="sand" checked>Sand
-          </label>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('water')" value="water">Water
-          </label>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('fire')" value="fire">fire
-          </label>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('wood')" value="wood">wood
-          </label>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('smoke')" value="smoke">smoke
-          </label>
-          <label>
-            <input type="radio" name="material" onchange="changeMaterial('vapor')" value="vapor">vapor
-          </label>
         </div>
       </form>
     </div>

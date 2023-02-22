@@ -4,10 +4,13 @@ let selectedMaterial = "sand"
 let mouseDown = false
 let mousePosition = {x: 0, y: 0};
 
+
 window.changeMaterial = (material) => {
     console.log(material)
     selectedMaterial = material
 }
+
+let tickInterval = document.getElementById("tick_interval");
 
 const pausedCheckbox = document.getElementById("paused-checkbox")
 
@@ -55,14 +58,26 @@ const draw = () => {
     ctx.putImageData(imgData, 0, 0);
 }
 
-const renderLoop = () => {
-    if (pausedCheckbox.checked) return;
+let currentTick = 0;
 
-    // TODO handle input
+const renderLoop = () => {
+    if (pausedCheckbox.checked) {
+        return;
+    }
+
+    currentTick += 1;
+    currentTick %= tickInterval.value;
+
+    if (currentTick != 0) {
+        requestAnimationFrame(renderLoop)
+        return;
+    }
+
     if (mouseDown) {
         let pos = getMousePos();
         renderer.add_material(selectedMaterial, pos.x, pos.y);
     }
+
     draw();
     renderer.tick();
     requestAnimationFrame(renderLoop);
