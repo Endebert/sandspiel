@@ -1,7 +1,9 @@
 mod utils;
 
-use simulation::sand_sim::Simulation;
-use simulation::universe::{CellContent, Material, Position, Universe};
+use simulation::entities::cell_content::CellContent;
+use simulation::entities::material::Material;
+use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::universe::{Position, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 
@@ -24,7 +26,7 @@ impl WasmPackRenderer {
         fill_area[width / 3] = Material::SandGenerator;
         fill_area[width / 2] = Material::WaterGenerator;
 
-        sim.universe.fill(&fill_area);
+        sim.fill(&fill_area);
         Self { sim }
     }
 
@@ -36,6 +38,7 @@ impl WasmPackRenderer {
         Clamped(to_u8(&self.sim.universe))
     }
 
+    /// Adds a [Material] at a specific point in the [Universe] of the [Simulation]
     pub fn add_material(&mut self, material: &str, x: isize, y: isize) {
         let position = Position::new(x.unsigned_abs(), y.unsigned_abs());
         let material = match material {
@@ -69,7 +72,7 @@ const SMOKE_COLOR: [u8; 4] = [0x77, 0x77, 0x77, 0x77];
 const VAPOR_COLOR: [u8; 4] = [0, 0, 0xff, 0x77];
 const WOOD_COLOR: [u8; 4] = [0xDE, 0xB8, 0x87, 0xff];
 
-fn to_u8(universe: &Universe) -> Vec<u8> {
+fn to_u8(universe: &Universe<CellContentWrapper>) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for cell in &universe.area {
