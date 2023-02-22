@@ -16,5 +16,14 @@ Press Enter to forward the simulation. You can change the initial state in [main
 ```bash
 cargo run --package pixels_renderer
 ```
----
-Webgpu renderer is unfinished, and Wasm-pack renderer is currently broken due to lack of support for threads.
+### In a Browser (using [wasm-pack](https://rustwasm.github.io/wasm-pack/))
+1. install wasm-pack (see website)
+```bash
+cd wasm-pack-renderer
+wasm-pack build
+cd www
+npm install
+export NODE_OPTIONS=--openssl-legacy-provider
+npm start
+```
+OpenSSL legacy provider is required, unfortunately. The option is only needed if you are using a newer version of nodejs.
