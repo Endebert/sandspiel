@@ -3,10 +3,7 @@ extern crate core;
 use simulation::entities::material::Material;
 use simulation::sand_sim::{CellContentWrapper, Simulation};
 use simulation::universe::Universe;
-use std::fmt::{Display, Formatter};
 use std::io;
-use std::thread::sleep;
-use std::time::Duration;
 
 const S: Material = Material::Sand;
 const A: Material = Material::Air;
@@ -35,7 +32,7 @@ fn main() {
     //     S, A, S, S, S, A,
     // ];
 
-    let mut sim = Simulation::new(5, 5);
+    let sim = Simulation::new(5, 5);
     //
     // let mut fill_area = vec![Material::Air; 5];
     // fill_area[1] = Material::SandGenerator;
@@ -51,14 +48,14 @@ fn main() {
 
     let fill_area = fill_area_2d.concat();
 
-    sim.fill(&fill_area);
+    sim.par_fill(&fill_area);
     let mut buf = String::new();
 
     loop {
         draw(&sim.universe);
         let _ignored = io::stdin().read_line(&mut buf);
         // sleep(Duration::from_millis(40));
-        sim.tick();
+        sim.par_tick();
     }
 }
 

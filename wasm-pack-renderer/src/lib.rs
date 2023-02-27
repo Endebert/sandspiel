@@ -1,5 +1,6 @@
 mod utils;
 
+use crate::utils::set_panic_hook;
 use simulation::entities::cell_content::CellContent;
 use simulation::entities::material::Material;
 use simulation::sand_sim::{CellContentWrapper, Simulation};
@@ -21,7 +22,9 @@ pub struct WasmPackRenderer {
 #[wasm_bindgen]
 impl WasmPackRenderer {
     pub fn new(width: usize, height: usize) -> Self {
-        let mut sim = Simulation::new(width, height);
+        set_panic_hook();
+
+        let sim = Simulation::new(width, height);
         let mut fill_area = vec![Material::Air; width];
         fill_area[width / 3] = Material::SandGenerator;
         fill_area[width / 2] = Material::WaterGenerator;

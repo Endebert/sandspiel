@@ -7,3 +7,8 @@ members = [
     "wasm-pack-renderer",
     "pixels_renderer",
 ]
+
+
+[profile.release.package.wasm-pack-renderer]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

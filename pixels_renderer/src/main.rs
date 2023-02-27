@@ -25,12 +25,12 @@ fn main() {
 
     let width_usize = WIDTH as usize;
     let height_usize = HEIGHT as usize;
-    let mut sim = Simulation::new(width_usize, height_usize);
+    let sim = Simulation::new(width_usize, height_usize);
     let mut fill_area = vec![Material::Air; width_usize];
-    fill_area[width_usize / 3] = Material::SandGenerator;
-    fill_area[width_usize / 2] = Material::WaterGenerator;
+    fill_area[width_usize / 3 * 1] = Material::SandGenerator;
+    fill_area[width_usize / 3 * 2] = Material::WaterGenerator;
 
-    sim.fill(&fill_area);
+    sim.par_fill(&fill_area);
 
     let mut current_tick = 0;
 
@@ -108,7 +108,7 @@ fn main() {
 
             if current_tick == 0 {
                 // Update internal state and request a redraw
-                sim.tick();
+                sim.par_tick();
             }
             window.request_redraw();
         }
