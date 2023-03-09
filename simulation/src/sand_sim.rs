@@ -49,24 +49,20 @@ impl Simulation {
         let num_threads = current_num_threads();
         let slice_size = len / num_threads;
 
-        rayon::scope(|s| {
-            for i in 0..num_threads {
-                let start = slice_size * i;
+        (0..num_threads).into_par_iter().for_each(|i| {
+            let start = slice_size * i;
 
-                // we need to have the special case for the last iteration, as the final part for
-                // universe might be bigger than than [slice_size]
-                let end = if i == num_threads - 1 {
-                    len - 1
-                } else {
-                    slice_size * (i + 1)
-                };
+            // we need to have the special case for the last iteration, as the final part for
+            // universe might be bigger than than [slice_size]
+            let end = if i == num_threads - 1 {
+                len - 1
+            } else {
+                slice_size * (i + 1)
+            };
 
-                s.spawn(move |_| {
-                    for index in (start..end).rev() {
-                        let pos = self.universe.i_to_pos(index);
-                        self.handle_collision(&pos);
-                    }
-                });
+            for index in (start..end).rev() {
+                let pos = self.universe.i_to_pos(index);
+                self.handle_collision(&pos);
             }
         });
     }
@@ -132,7 +128,7 @@ impl Simulation {
                 // we cannot `neighbor.lock()` here as this might cause a deadlock.
                 // therefore we just `try_lock()` and move on to the next neighbor if it fails
                 let Ok(mut neighbor_content) = neighbor.try_lock() else {
-                    println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
+                    // println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
                     continue;
                 };
 
