@@ -7,7 +7,7 @@ pub type Velocity = i16;
 
 /// The contents of a cell in a [Universe].
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CellContent {
+pub struct Particle {
     /// The material properties of the cell.
     pub material: Material,
 
@@ -18,7 +18,7 @@ pub struct CellContent {
     pub handled: bool,
 }
 
-impl CellContent {
+impl Particle {
     pub fn new(mat: Material, handled: bool, velocity: Velocity) -> Self {
         Self {
             material: mat,
@@ -28,8 +28,8 @@ impl CellContent {
     }
 }
 
-impl Default for CellContent {
+impl Default for Particle {
     fn default() -> Self {
-        CellContent::new(Air, false, 0)
+        Particle::new(Air, false, 0)
     }
 }

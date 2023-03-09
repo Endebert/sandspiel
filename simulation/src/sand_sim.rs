@@ -1,4 +1,4 @@
-use crate::entities::cell_content::CellContent;
+use crate::entities::cell_content::Particle;
 use crate::entities::direction::ExtDirIterator;
 use crate::entities::material::CollisionDesire::{
     Consume, Convert, Eradicate, Evade, GetConverted, SwapAndMove, SwapAndStop,
@@ -11,11 +11,11 @@ use rayon::prelude::*;
 use std::sync::{Mutex, MutexGuard};
 // use std::time::{Instant, SystemTime};
 
-pub type CellContentWrapper = Mutex<CellContent>;
+pub type Cell = Mutex<Particle>;
 
 /// Simulates the behaviour of [Material] in a [Universe] per tick
 pub struct Simulation {
-    pub universe: Universe<CellContentWrapper>,
+    pub universe: Universe<Cell>,
 }
 
 impl Simulation {
@@ -74,31 +74,25 @@ impl Simulation {
     /// Fills (part of) the universe of the simulation with the given area.
     pub fn fill(&self, area: &[Material]) {
         for (i, kind) in area.iter().enumerate() {
-            self.universe.area[i]
-                .lock()
-                .unwrap()
-                .clone_from(&CellContent::new(kind.clone(), false, 0));
+            *self.universe.area[i].lock().unwrap() = Particle::new(kind.clone(), false, 0);
         }
     }
 
     /// Fills (part of) the universe of the simulation with the given area. Uses multithreading where possible.
     pub fn par_fill(&self, area: &[Material]) {
         area.par_iter().enumerate().for_each(|(i, kind)| {
-            self.universe.area[i]
-                .lock()
-                .unwrap()
-                .clone_from(&CellContent::new(kind.clone(), false, 0));
+            *self.universe.area[i].lock().unwrap() = Particle::new(kind.clone(), false, 0);
         });
     }
 
-    /// Sets all [CellContent] in the [Universe] to unhandled.
+    /// Sets all [Particle] in the [Universe] to unhandled.
     pub fn set_all_unhandled(&self) {
         for cell in &self.universe.area {
             cell.lock().unwrap().handled = false;
         }
     }
 
-    /// Sets all [CellContent] in the [Universe] to unhandled. Uses multithreading where possible.
+    /// Sets all [Particle] in the [Universe] to unhandled. Uses multithreading where possible.
     pub fn par_set_all_unhandled(&self) {
         self.universe
             .area
@@ -124,12 +118,7 @@ impl Simulation {
     ///
     /// A cell might want to collide multiple times, based on its velocity. This function recursively
     /// calls itself until satisfied.
-    fn step(
-        &self,
-        pos: &Position,
-        mut cell_content: MutexGuard<CellContent>,
-        steps_remaining: i16,
-    ) {
+    fn step(&self, pos: &Position, mut cell_content: MutexGuard<Particle>, steps_remaining: i16) {
         if steps_remaining == 0 {
             // we used all steps without stopping, i.e. free fall
             cell_content.handled = true;
@@ -143,7 +132,7 @@ impl Simulation {
                 // we cannot `neighbor.lock()` here as this might cause a deadlock.
                 // therefore we just `try_lock()` and move on to the next neighbor if it fails
                 let Ok(mut neighbor_content) = neighbor.try_lock() else {
-                    // println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
+                    println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
                     continue;
                 };
 
@@ -154,8 +143,8 @@ impl Simulation {
                 {
                     SwapAndMove => {
                         let copy = cell_content.clone();
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
+                        *cell_content = neighbor_content.clone();
+                        *neighbor_content = copy;
 
                         drop(cell_content);
                         self.handle_collision(pos);
@@ -163,37 +152,35 @@ impl Simulation {
                     }
                     SwapAndStop => {
                         cell_content.velocity = 0;
-                        cell_content.handled = true;
 
                         let copy = cell_content.clone();
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
+                        *cell_content = neighbor_content.clone();
+                        *neighbor_content = copy;
 
-                        return;
+                        drop(cell_content);
+                        self.handle_collision(pos);
+                        return self.step(&neighbor_pos, neighbor_content, 0);
                     }
                     Convert(replace_material) => {
-                        neighbor_content.clone_from(&CellContent::new(replace_material, true, 0));
+                        *neighbor_content = Particle::new(replace_material, true, 0);
 
                         break;
                     }
                     Evade => {}
                     Consume(mat) => {
-                        neighbor_content.clone_from(&CellContent::new(mat, false, 0));
-
-                        let copy = cell_content.clone();
-                        cell_content.clone_from(&neighbor_content);
-                        neighbor_content.clone_from(&copy);
+                        *neighbor_content = cell_content.clone();
+                        *cell_content = Particle::new(mat, true, 0);
 
                         break;
                     }
                     GetConverted(mat) => {
-                        cell_content.clone_from(&CellContent::new(mat, true, 0));
+                        *cell_content = Particle::new(mat, true, 0);
 
                         break;
                     }
                     Eradicate(new_current_mat, new_neighbor_mat) => {
-                        cell_content.clone_from(&CellContent::new(new_current_mat, true, 0));
-                        neighbor_content.clone_from(&CellContent::new(new_neighbor_mat, true, 0));
+                        *cell_content = Particle::new(new_current_mat, true, 0);
+                        *neighbor_content = Particle::new(new_neighbor_mat, true, 0);
 
                         break;
                     }

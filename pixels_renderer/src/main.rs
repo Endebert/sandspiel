@@ -5,9 +5,9 @@ mod gui;
 use crate::gui::Framework;
 use log::{debug, error};
 use pixels::{Pixels, SurfaceTexture};
-use simulation::entities::cell_content::CellContent;
+use simulation::entities::cell_content::Particle;
 use simulation::entities::material::Material;
-use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::sand_sim::{Cell, Simulation};
 use simulation::universe::{Position, Universe};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
@@ -15,8 +15,8 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 use winit_input_helper::WinitInputHelper;
 
-const WIDTH: u32 = 128;
-const HEIGHT: u32 = 128;
+const WIDTH: u32 = 256;
+const HEIGHT: u32 = 256;
 
 fn main() {
     env_logger::init();
@@ -77,7 +77,7 @@ fn main() {
             if input.mouse_pressed(0) | input.mouse_held(0) {
                 match pixels.window_pos_to_pixel(mouse_pos) {
                     Ok((x, y)) => {
-                        let content = CellContent::new(framework.gui.material.clone(), false, 0);
+                        let content = Particle::new(framework.gui.material.clone(), false, 0);
                         let position = Position::new(x, y);
                         sim.universe
                             .get_cell(&position)
@@ -150,13 +150,13 @@ fn main() {
     });
 }
 
-fn draw(universe: &Universe<CellContentWrapper>, screen: &mut [u8]) {
+fn draw(universe: &Universe<Cell>, screen: &mut [u8]) {
     for (cell, pixel) in universe.area.iter().zip(screen.chunks_exact_mut(4)) {
         pixel.copy_from_slice(cell_to_color(&cell.lock().unwrap()));
     }
 }
 
-fn cell_to_color(cell: &CellContent) -> &[u8; 4] {
+fn cell_to_color(cell: &Particle) -> &[u8; 4] {
     match cell.material {
         Material::Sand => &SAND_COLOR,
         Material::SandGenerator => &SAND_GENERATOR_COLOR,

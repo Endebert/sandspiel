@@ -1,9 +1,9 @@
 mod utils;
 
 use crate::utils::set_panic_hook;
-use simulation::entities::cell_content::CellContent;
+use simulation::entities::cell_content::Particle;
 use simulation::entities::material::Material;
-use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::sand_sim::{Cell, Simulation};
 use simulation::universe::{Position, Universe};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
@@ -53,7 +53,7 @@ impl WasmPackRenderer {
             "wood" => Material::Wood,
             _ => panic!("Tried to add unknown material '{material}'"),
         };
-        let content = CellContent::new(material, true, 0);
+        let content = Particle::new(material, true, 0);
 
         self.sim
             .universe
@@ -75,7 +75,7 @@ const SMOKE_COLOR: [u8; 4] = [0x77, 0x77, 0x77, 0x77];
 const VAPOR_COLOR: [u8; 4] = [0, 0, 0xff, 0x77];
 const WOOD_COLOR: [u8; 4] = [0xDE, 0xB8, 0x87, 0xff];
 
-fn to_u8(universe: &Universe<CellContentWrapper>) -> Vec<u8> {
+fn to_u8(universe: &Universe<Cell>) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::with_capacity(universe.area.len() * 4);
 
     for cell in &universe.area {

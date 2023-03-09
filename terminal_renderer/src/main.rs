@@ -1,16 +1,16 @@
 extern crate core;
 
 use simulation::entities::material::Material;
-use simulation::sand_sim::{CellContentWrapper, Simulation};
+use simulation::sand_sim::{Cell, Simulation};
 use simulation::universe::Universe;
 use std::io;
 
-const S: Material = Material::Sand;
+// const S: Material = Material::Sand;
 const A: Material = Material::Air;
-const W: Material = Material::Water;
-const w: Material = Material::WaterGenerator;
+// const W: Material = Material::Water;
+// const w: Material = Material::WaterGenerator;
 const D: Material = Material::Wood;
-const V: Material = Material::Vapor;
+// const V: Material = Material::Vapor;
 const F: Material = Material::Fire;
 
 fn main() {
@@ -59,7 +59,7 @@ fn main() {
     }
 }
 
-pub fn get_as_string(area: &[CellContentWrapper], width: usize) -> String {
+pub fn get_as_string(area: &[Cell], width: usize) -> String {
     let lines: Vec<String> = area
         .chunks(width)
         .map(|chunk| chunk.iter().map(content_to_char).collect::<String>())
@@ -67,7 +67,7 @@ pub fn get_as_string(area: &[CellContentWrapper], width: usize) -> String {
     lines.join("\n")
 }
 
-pub fn draw(universe: &Universe<CellContentWrapper>) {
+pub fn draw(universe: &Universe<Cell>) {
     // clear screen
     // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     // print!("{}[2J", 27 as char);
@@ -78,7 +78,7 @@ pub fn draw(universe: &Universe<CellContentWrapper>) {
     println!("{}", get_as_string(&universe.area, universe.width));
 }
 
-fn content_to_char(content: &CellContentWrapper) -> char {
+fn content_to_char(content: &Cell) -> char {
     match content.lock().unwrap().material {
         Material::Sand => '■',
         Material::SandGenerator => 'S',
