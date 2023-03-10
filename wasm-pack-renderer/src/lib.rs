@@ -25,9 +25,13 @@ impl WasmPackRenderer {
         set_panic_hook();
 
         let sim = Simulation::new(width, height);
-        let mut fill_area = vec![Material::Air; width];
-        fill_area[width / 3] = Material::SandGenerator;
-        fill_area[width / 2] = Material::WaterGenerator;
+        let mut fill_area = vec![Material::Air; width * height];
+        fill_area[width / 2] = Material::SandGenerator;
+
+        // fill lower half with water
+        for i in (width * (height / 2))..fill_area.len() {
+            fill_area[i] = Material::Water;
+        }
 
         sim.fill(&fill_area);
         Self { sim }
