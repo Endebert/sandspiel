@@ -17,12 +17,14 @@ pub type Cell = Mutex<Particle>;
 /// Simulates the behaviour of [Material] in a [Universe] per tick
 pub struct Simulation {
     pub universe: Universe<Cell>,
+    pub num_threads: usize,
 }
 
 impl Simulation {
     pub fn new(width: usize, height: usize) -> Self {
         Self {
             universe: Universe::new(width, height),
+            num_threads: current_num_threads(),
         }
     }
 
@@ -51,7 +53,7 @@ impl Simulation {
         let failed_locks = Mutex::new(0usize);
 
         let len = self.universe.area.len();
-        let num_threads = current_num_threads();
+        let num_threads = self.num_threads;
         let slice_size = len / num_threads;
 
         (0..num_threads).into_par_iter().for_each(|i| {
