@@ -25,9 +25,11 @@ pub(crate) struct Framework {
 pub struct Gui {
     pub material: Material,
     pub tick_interval: u8,
-    pub frame_time: Duration,
-    pub last_frame: SystemTime,
+    pub tick_duration: Duration,
+    pub frame_duration: Duration,
+    pub last_frame_time: SystemTime,
     pub failed_locks: usize,
+    pub num_threads: usize,
 }
 
 impl Framework {
@@ -55,8 +57,10 @@ impl Framework {
             material: Material::Sand,
             tick_interval: 1,
             failed_locks: 0,
-            frame_time: Duration::from_secs(0),
-            last_frame: SystemTime::now(),
+            tick_duration: Duration::from_secs(0),
+            frame_duration: Duration::from_secs(0),
+            last_frame_time: SystemTime::now(),
+            num_threads: 0,
         };
 
         Self {
@@ -154,14 +158,13 @@ impl Gui {
                 ui.radio_value(current, Material::SandGenerator, "Sand Generator");
                 ui.radio_value(current, Material::WaterGenerator, "Water Generator");
             });
+            ui.label(format!("Threads: {}", self.num_threads));
             ui.label("Tick Interval");
             ui.add(egui::Slider::new(&mut self.tick_interval, 1..=6));
+            let fps = 1_000_000 / self.frame_duration.as_micros();
+            ui.label(format!("FPS: {}", fps));
+            ui.label(format!("Tick Time: {}µs", self.tick_duration.as_micros()));
             ui.label(format!("Failed locks: {}", self.failed_locks));
-
-            let micros = self.frame_time.as_micros();
-
-            ui.label(format!("Frame Time: {}µs", micros));
-            ui.label(format!("FPS: {}", 1_000_000 / micros));
         });
     }
 }

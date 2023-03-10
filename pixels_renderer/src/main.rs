@@ -9,7 +9,7 @@ use simulation::entities::cell_content::Particle;
 use simulation::entities::material::Material;
 use simulation::sand_sim::{Cell, Simulation};
 use simulation::universe::{Position, Universe};
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -63,6 +63,9 @@ fn main() {
 
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
+    // manually declare num threads for gui
+    framework.gui.num_threads = sim.num_threads;
+
     let mut mouse_pos = (-1f32, -1f32);
 
     event_loop.run(move |event, _, control_flow| {
@@ -112,10 +115,14 @@ fn main() {
 
             if current_tick == 0 {
                 // Update internal state and request a redraw
-                framework.gui.failed_locks = sim.par_tick();
+                framework.gui.tick_duration = measure_time(|| {
+                    framework.gui.failed_locks = sim.par_tick();
+                });
+
                 let now = SystemTime::now();
-                framework.gui.frame_time = now.duration_since(framework.gui.last_frame).unwrap();
-                framework.gui.last_frame = now;
+                framework.gui.frame_duration =
+                    now.duration_since(framework.gui.last_frame_time).unwrap();
+                framework.gui.last_frame_time = now;
             }
             window.request_redraw();
         }
@@ -186,3 +193,12 @@ const FIRE_COLOR: [u8; 4] = [0xff, 0, 0, 0xff];
 const SMOKE_COLOR: [u8; 4] = [0x7F, 0x7F, 0x7F, 0xff];
 const VAPOR_COLOR: [u8; 4] = [0x7F, 0x7F, 0xFF, 0xff];
 const WOOD_COLOR: [u8; 4] = [0xDE, 0xB8, 0x87, 0xff];
+
+fn measure_time<F>(f: F) -> Duration
+where
+    F: FnOnce(),
+{
+    let start = Instant::now();
+    f();
+    start.elapsed()
+}
