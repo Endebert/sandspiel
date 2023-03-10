@@ -30,6 +30,7 @@ fn main() {
     let mut fill_area = vec![Material::Air; width_usize * height_usize];
     fill_area[width_usize / 2] = Material::SandGenerator;
 
+    // fill lower half with water
     for i in (width_usize * (height_usize / 2))..fill_area.len() {
         fill_area[i] = Material::Water;
     }
