@@ -1,7 +1,9 @@
 use egui::{ClippedPrimitive, Context, TexturesDelta};
 use egui_wgpu::renderer::{RenderPass, ScreenDescriptor};
+use env_logger::TimestampPrecision::Seconds;
 use pixels::{wgpu, PixelsContext};
 use simulation::entities::material::Material;
+use std::time::{Duration, SystemTime};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::Window;
 
@@ -23,6 +25,9 @@ pub(crate) struct Framework {
 pub struct Gui {
     pub material: Material,
     pub tick_interval: u8,
+    pub frame_time: Duration,
+    pub last_frame: SystemTime,
+    pub failed_locks: usize,
 }
 
 impl Framework {
@@ -49,6 +54,9 @@ impl Framework {
         let gui = Gui {
             material: Material::Sand,
             tick_interval: 1,
+            failed_locks: 0,
+            frame_time: Duration::from_secs(0),
+            last_frame: SystemTime::now(),
         };
 
         Self {
@@ -147,7 +155,13 @@ impl Gui {
                 ui.radio_value(current, Material::WaterGenerator, "Water Generator");
             });
             ui.label("Tick Interval");
-            ui.add(egui::Slider::new(&mut self.tick_interval, 1..=6))
+            ui.add(egui::Slider::new(&mut self.tick_interval, 1..=6));
+            ui.label(format!("Failed locks: {}", self.failed_locks));
+
+            let micros = self.frame_time.as_micros();
+
+            ui.label(format!("Frame Time: {}µs", micros));
+            ui.label(format!("FPS: {}", 1_000_000 / micros));
         });
     }
 }

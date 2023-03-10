@@ -9,6 +9,7 @@ use simulation::entities::cell_content::Particle;
 use simulation::entities::material::Material;
 use simulation::sand_sim::{Cell, Simulation};
 use simulation::universe::{Position, Universe};
+use std::time::{Instant, SystemTime};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, VirtualKeyCode};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -26,9 +27,12 @@ fn main() {
     let width_usize = WIDTH as usize;
     let height_usize = HEIGHT as usize;
     let sim = Simulation::new(width_usize, height_usize);
-    let mut fill_area = vec![Material::Air; width_usize];
-    fill_area[width_usize / 3 * 1] = Material::SandGenerator;
-    fill_area[width_usize / 3 * 2] = Material::WaterGenerator;
+    let mut fill_area = vec![Material::Air; width_usize * height_usize];
+    fill_area[width_usize / 2] = Material::SandGenerator;
+
+    for i in (width_usize * (height_usize / 2))..fill_area.len() {
+        fill_area[i] = Material::Water;
+    }
 
     sim.par_fill(&fill_area);
 
@@ -108,7 +112,10 @@ fn main() {
 
             if current_tick == 0 {
                 // Update internal state and request a redraw
-                sim.par_tick();
+                framework.gui.failed_locks = sim.par_tick();
+                let now = SystemTime::now();
+                framework.gui.frame_time = now.duration_since(framework.gui.last_frame).unwrap();
+                framework.gui.last_frame = now;
             }
             window.request_redraw();
         }
