@@ -5,6 +5,7 @@ use crate::entities::material::CollisionDesire::{
 };
 use crate::entities::material::Material;
 use crate::universe::{Position, Universe};
+use std::ops::Deref;
 
 use rayon::current_num_threads;
 use rayon::prelude::*;
@@ -32,19 +33,23 @@ impl Simulation {
     }
 
     /// Advances the simulation by one step. Uses multithreading where possible.
-    pub fn par_tick(&self) {
+    pub fn par_tick(&self) -> usize {
         self.par_set_all_unhandled();
-        self.par_simulate();
+        self.par_simulate()
     }
 
     fn simulate(&self) {
+        let failed_locks = Mutex::new(0usize);
+
         for index in (0..self.universe.area.len()).rev() {
             let pos = self.universe.i_to_pos(index);
-            self.handle_collision(&pos);
+            self.handle_collision(&pos, &failed_locks);
         }
     }
 
-    fn par_simulate(&self) {
+    fn par_simulate(&self) -> usize {
+        let failed_locks = Mutex::new(0usize);
+
         let len = self.universe.area.len();
         let num_threads = current_num_threads();
         let slice_size = len / num_threads;
@@ -62,9 +67,12 @@ impl Simulation {
 
             for index in (start..end).rev() {
                 let pos = self.universe.i_to_pos(index);
-                self.handle_collision(&pos);
+                self.handle_collision(&pos, &failed_locks);
             }
         });
+
+        let x = *failed_locks.lock().unwrap();
+        x
     }
 
     /// Fills (part of) the universe of the simulation with the given area.
@@ -97,7 +105,7 @@ impl Simulation {
     }
 
     /// Handles collisions for a cell in a [Universe] at the given [Position].
-    fn handle_collision(&self, pos: &Position) {
+    fn handle_collision(&self, pos: &Position, failed_locks: &Mutex<usize>) {
         let mut cell_content = self.universe.get_cell(pos).unwrap().lock().unwrap();
 
         if cell_content.handled {
@@ -107,14 +115,20 @@ impl Simulation {
         cell_content.velocity += 1;
         let steps_remaining = cell_content.velocity.abs();
 
-        self.step(pos, cell_content, steps_remaining);
+        self.step(pos, cell_content, steps_remaining, failed_locks);
     }
 
     /// Calculates a step during collision handling of a cell in a [Universe].
     ///
     /// A cell might want to collide multiple times, based on its velocity. This function recursively
     /// calls itself until satisfied.
-    fn step(&self, pos: &Position, mut cell_content: MutexGuard<Particle>, steps_remaining: i16) {
+    fn step(
+        &self,
+        pos: &Position,
+        mut cell_content: MutexGuard<Particle>,
+        steps_remaining: i16,
+        failed_locks: &Mutex<usize>,
+    ) {
         if steps_remaining == 0 {
             // we used all steps without stopping, i.e. free fall
             cell_content.handled = true;
@@ -129,6 +143,7 @@ impl Simulation {
                 // therefore we just `try_lock()` and move on to the next neighbor if it fails
                 let Ok(mut neighbor_content) = neighbor.try_lock() else {
                     // println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
+                    *failed_locks.lock().unwrap() += 1;
                     continue;
                 };
 
@@ -143,8 +158,13 @@ impl Simulation {
                         *neighbor_content = copy;
 
                         drop(cell_content);
-                        self.handle_collision(pos);
-                        return self.step(&neighbor_pos, neighbor_content, steps_remaining - 1);
+                        self.handle_collision(pos, failed_locks);
+                        return self.step(
+                            &neighbor_pos,
+                            neighbor_content,
+                            steps_remaining - 1,
+                            failed_locks,
+                        );
                     }
                     SwapAndStop => {
                         cell_content.velocity = 0;
@@ -154,8 +174,8 @@ impl Simulation {
                         *neighbor_content = copy;
 
                         drop(cell_content);
-                        self.handle_collision(pos);
-                        return self.step(&neighbor_pos, neighbor_content, 0);
+                        self.handle_collision(pos, failed_locks);
+                        return self.step(&neighbor_pos, neighbor_content, 0, failed_locks);
                     }
                     Convert(replace_material) => {
                         *neighbor_content = Particle::new(replace_material, true, 0);
