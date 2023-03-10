@@ -65,7 +65,8 @@ fn main() {
     let mut framework = Framework::new(&event_loop, WIDTH, HEIGHT, scale_factor, &pixels);
 
     // manually declare num threads for gui
-    framework.gui.num_threads = sim.num_threads;
+    // NOTE:  might be inaccurate, rayon docs say this value could change over time
+    framework.gui.num_threads = Simulation::get_num_threads();
 
     let mut mouse_pos = (-1f32, -1f32);
 
