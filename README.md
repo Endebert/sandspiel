@@ -4,7 +4,7 @@ A prototype implementation of the classic [Falling-sand game](https://en.wikiped
 
 I have started this project to get familiar with Rust. It has multithreading and the simulation is renderer-agnostic.
 
-At the moment, a few materials are implemented, as well as various renderers. Simulation speed is dependent on monitor refresh rate.
+At the moment, a few materials are implemented, as well as various renderers.
 
 ## Usage
 ### In Terminal
