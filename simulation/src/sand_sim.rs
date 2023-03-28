@@ -148,7 +148,7 @@ impl Simulation {
                 // we cannot `neighbor.lock()` here as this might cause a deadlock.
                 // therefore we just `try_lock()` and move on to the next neighbor if it fails
                 let Ok(mut neighbor_content) = neighbor.try_lock() else {
-                    // println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
+                    println!("Failed to acquire lock for neighbor at {neighbor_pos:?}");
                     *failed_locks.lock().unwrap() += 1;
                     continue;
                 };
@@ -164,13 +164,13 @@ impl Simulation {
                         *neighbor_content = copy;
 
                         drop(cell_content);
-                        self.handle_collision(pos, failed_locks);
-                        return self.step(
+                        self.step(
                             &neighbor_pos,
                             neighbor_content,
                             steps_remaining - 1,
                             failed_locks,
                         );
+                        return self.handle_collision(pos, failed_locks);
                     }
                     SwapAndStop => {
                         cell_content.velocity = 0;
@@ -180,8 +180,8 @@ impl Simulation {
                         *neighbor_content = copy;
 
                         drop(cell_content);
-                        self.handle_collision(pos, failed_locks);
-                        return self.step(&neighbor_pos, neighbor_content, 0, failed_locks);
+                        self.step(&neighbor_pos, neighbor_content, 0, failed_locks);
+                        return self.handle_collision(pos, failed_locks);
                     }
                     Convert(replace_material) => {
                         *neighbor_content = Particle::new(replace_material, true, 0);
